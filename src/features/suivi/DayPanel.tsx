@@ -108,15 +108,17 @@ export function DayPanel({ data, update, dayKey }: DayPanelProps) {
             {st.label}
           </span>
         )}
-        <span
-          className="px-2.5 py-1 rounded-full text-[11px] font-semibold"
-          style={{ background: C.surf2, color: C.text }}
-        >
-          Sport :{' '}
-          <span style={sport === 'actif' ? { fontWeight: 800, textDecoration: 'underline' } : { fontStyle: 'italic', color: C.dim }}>
-            {sport}
+        {sport && (
+          <span
+            className="px-2.5 py-1 rounded-full text-[11px] font-semibold"
+            style={{ background: C.surf2, color: C.text }}
+          >
+            Sport :{' '}
+            <span style={sport === 'actif' ? { fontWeight: 800, textDecoration: 'underline' } : { fontStyle: 'italic', color: C.dim }}>
+              {sport}
+            </span>
           </span>
-        </span>
+        )}
         {acts.map((a) => (
           <span
             key={a.id}

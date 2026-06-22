@@ -16,11 +16,22 @@ export function getWorkouts(data: AppData): Workout[] {
     : [{ id: 'law', name: 'LA Règle', items: data.workouts?.[0]?.items || defaultSession() }];
 }
 
-export function workoutForDay(data: AppData, k: string): Workout | null {
+export function workoutIdsForDay(data: AppData, k: string): string[] {
   const wt = data.weekTemplate || DEFAULT_WEEK_TEMPLATE;
-  const wid = wt[parseKey(k).getDay()];
-  if (!wid) return null;
-  return getWorkouts(data).find((w) => w.id === wid) || null;
+  const v = wt[parseKey(k).getDay()] as unknown as string | string[] | undefined;
+  if (!v) return [];
+  return Array.isArray(v) ? v : [v];
+}
+
+export function workoutsForDay(data: AppData, k: string): Workout[] {
+  const ws = getWorkouts(data);
+  return workoutIdsForDay(data, k)
+    .map((id) => ws.find((w) => w.id === id))
+    .filter((w): w is Workout => Boolean(w));
+}
+
+export function workoutForDay(data: AppData, k: string): Workout | null {
+  return workoutsForDay(data, k)[0] || null;
 }
 
 /** Libellé "Semaine N/8" du cycle d'entraînement de 9 semaines. */
@@ -43,17 +54,17 @@ export function cycleLabelFor(data: AppData, k: string): string {
   return cycleLabel(data.cycleStart || dateKey());
 }
 
-/** Statut sportif d'un jour : "actif" ou "off". */
-export function sportStatus(data: AppData, k: string): string {
+/**
+ * Statut sportif d'un jour : "actif" ou "off", uniquement si une période de
+ * cycle a été explicitement définie dans Réglages → Tableau de bord → Agenda.
+ * Retourne `null` si aucun cycle n'est configuré (pas de calcul automatique).
+ */
+export function sportStatus(data: AppData, k: string): string | null {
   const agenda = data.agenda || {};
   const cyc = (agenda.periods || []).find(
     (p) => p.kind === 'cycle' && inRange(k, p.start, p.end)
   );
-  if (cyc) return cyc.catId;
-  const w = Math.floor(daysBetween(data.cycleStart || dateKey(), k) / 7);
-  const pos = ((w % 9) + 9) % 9;
-  if (pos >= 8) return 'off';
-  return dayType(parseKey(k)) === 'repos' ? 'off' : 'actif';
+  return cyc ? cyc.catId : null;
 }
 
 /**

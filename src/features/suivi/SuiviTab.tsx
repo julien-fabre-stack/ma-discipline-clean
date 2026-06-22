@@ -20,7 +20,8 @@ const LANEW = 7;
 
 export function SuiviTab({ data, update, today, openSettings }: SuiviTabProps) {
   const { C, dawn, glowShadow } = useTheme();
-  const drinkCount = (data.drinkfree.count || 0) + Math.max(0, daysBetween(data.drinkfree.date, today));
+  const dfStart = (data.drinkfree && data.drinkfree.start) || today;
+  const drinkCount = Math.max(0, daysBetween(dfStart, today));
   const _dy = Math.floor(drinkCount / 365);
   const _dr = drinkCount % 365;
   const _dm = Math.floor(_dr / 30);
@@ -107,10 +108,10 @@ export function SuiviTab({ data, update, today, openSettings }: SuiviTabProps) {
       className="flex flex-col"
       style={{ height: 'calc(100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 64px)' }}
     >
-      <div className="flex-shrink-0 px-5 pt-5 pb-2">
+      <div className="flex-shrink-0 px-5 pb-3" style={{ paddingTop: 'calc(env(safe-area-inset-top) + 20px)' }}>
         <div className="flex items-start justify-between">
           <h1 className="text-2xl font-extrabold tracking-tight">Tableau de bord</h1>
-          <button onClick={openSettings} className="p-2 rounded-full -mt-1" style={{ background: C.surf }}>
+          <button onClick={openSettings} className="p-2 rounded-full" style={{ background: C.surf }}>
             <Icon name="gear" size={18} color={C.dim} />
           </button>
         </div>
@@ -231,7 +232,7 @@ export function SuiviTab({ data, update, today, openSettings }: SuiviTabProps) {
             const dayActs = activitiesOf(agenda, k);
             const d = parseKey(k);
             const wknd = [0, 6].includes(d.getDay());
-            const cycColor = sport === 'actif' ? C.ok : '#46405C';
+            const cycColor = sport === 'actif' ? C.ok : sport === 'off' ? '#46405C' : 'transparent';
             const bg = wknd ? C.surf2 : st ? st.color : C.night;
             const txt = !wknd && st ? '#1A1206' : isToday ? C.gold : k < today ? C.text : C.dim;
             return (

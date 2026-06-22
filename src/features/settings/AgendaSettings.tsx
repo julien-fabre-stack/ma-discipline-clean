@@ -3,7 +3,7 @@ import type { Agenda, AgendaCategory, Period, PeriodKind } from '@/types';
 import { CYCLE_CATS } from '@/lib/defaults';
 import { parseKey, uid } from '@/lib/utils';
 import { useTheme } from '@/shared/theme/ThemeProvider';
-import { Icon, useConfirm } from '@/shared/ui';
+import { Collapsible, Icon, useConfirm } from '@/shared/ui';
 
 export interface AgendaSettingsProps {
   agenda: Agenda;
@@ -15,12 +15,10 @@ type CatBucket = 'statuses' | 'activities' | 'rdvTypes';
 const PALETTE = ['#FF7A45', '#FFC24B', '#5BC0FF', '#A78BFA', '#4ADE80', '#FF6FA5', '#34D1BF', '#E5484D'];
 
 function CatList({
-  title,
   hint,
   cats,
   onChange,
 }: {
-  title: string;
   hint: string;
   cats: AgendaCategory[];
   onChange: (cats: AgendaCategory[]) => void;
@@ -35,10 +33,7 @@ function CatList({
     if (ok) onChange(cats.filter((x) => x.id !== c.id));
   };
   return (
-    <div className="mb-5">
-      <div className="text-xs tracking-widest uppercase mb-1" style={{ color: C.dim }}>
-        {title}
-      </div>
+    <div className="mb-1">
       <div className="text-xs mb-2" style={{ color: C.dim }}>
         {hint}
       </div>
@@ -113,7 +108,11 @@ function PeriodEditor({
           <input
             type="date"
             value={start}
-            onChange={(e) => setStart(e.target.value)}
+            onChange={(e) => {
+              const s = e.target.value;
+              setStart(s);
+              if (!end || end < s) setEnd(s);
+            }}
             className="w-full px-3 py-2 rounded-lg text-sm outline-none"
             style={{ background: C.surf2, color: C.text, border: `1px solid ${C.line}` }}
           />
@@ -124,6 +123,7 @@ function PeriodEditor({
           </div>
           <input
             type="date"
+            min={start || undefined}
             value={end}
             onChange={(e) => setEnd(e.target.value)}
             className="w-full px-3 py-2 rounded-lg text-sm outline-none"
@@ -171,6 +171,8 @@ export function AgendaSettings({ agenda, setAgenda }: AgendaSettingsProps) {
   const { C } = useTheme();
   const askConfirm = useConfirm();
   const [periodKind, setPeriodKind] = useState<PeriodKind | null>(null);
+  const [open, setOpen] = useState<CatBucket | 'periods' | null>(null);
+  const toggle = (s: CatBucket | 'periods') => setOpen((cur) => (cur === s ? null : s));
 
   const statuses = agenda.statuses || [];
   const activities = agenda.activities || [];
@@ -212,60 +214,52 @@ export function AgendaSettings({ agenda, setAgenda }: AgendaSettingsProps) {
 
   return (
     <div>
-      <CatList
-        title="Statuts (fond coloré, exclusifs)"
-        hint="Un seul statut par jour : Mission, Repos, Permission…"
-        cats={statuses}
-        onChange={(c) => setBucket('statuses', c)}
-      />
-      <CatList
-        title="Activités (liserés, cumulables)"
-        hint="Plusieurs possibles le même jour, affichées en colonnes latérales."
-        cats={activities}
-        onChange={(c) => setBucket('activities', c)}
-      />
-      <CatList
-        title="Types de RDV"
-        hint="Catégories de rendez-vous (couleur de la pastille dans la timeline)."
-        cats={rdvTypes}
-        onChange={(c) => setBucket('rdvTypes', c)}
-      />
+      <Collapsible title="Statuts (fond coloré, exclusifs)" badge={statuses.length || null} open={open === 'statuses'} onToggle={() => toggle('statuses')}>
+        <CatList hint="Un seul statut par jour : Mission, Repos, Permission…" cats={statuses} onChange={(c) => setBucket('statuses', c)} />
+      </Collapsible>
 
-      <div className="text-xs tracking-widest uppercase mb-2 mt-6" style={{ color: C.dim }}>
-        Périodes
-      </div>
-      <div className="text-xs mb-3" style={{ color: C.dim }}>
-        Applique un statut, une activité ou un état de cycle (actif/off) sur une plage de dates.
-      </div>
+      <Collapsible title="Activités (liserés, cumulables)" badge={activities.length || null} open={open === 'activities'} onToggle={() => toggle('activities')}>
+        <CatList hint="Plusieurs possibles le même jour, affichées en colonnes latérales." cats={activities} onChange={(c) => setBucket('activities', c)} />
+      </Collapsible>
 
-      {periodKind ? (
-        <PeriodEditor kind={periodKind} cats={catsForKind(periodKind)} onAdd={addPeriod} onCancel={() => setPeriodKind(null)} />
-      ) : (
-        <div className="flex gap-2 mb-4">
-          {(['status', 'activity', 'cycle'] as PeriodKind[]).map((k) => (
-            <button
-              key={k}
-              onClick={() => setPeriodKind(k)}
-              className="flex-1 py-2 rounded-xl text-xs font-semibold"
-              style={{ background: C.surf2, color: C.gold }}
-            >
-              + {kindLabels[k]}
-            </button>
-          ))}
+      <Collapsible title="Types de RDV" badge={rdvTypes.length || null} open={open === 'rdvTypes'} onToggle={() => toggle('rdvTypes')}>
+        <CatList hint="Catégories de rendez-vous (couleur de la pastille dans la timeline)." cats={rdvTypes} onChange={(c) => setBucket('rdvTypes', c)} />
+      </Collapsible>
+
+      <Collapsible title="Périodes" badge={periods.length || null} open={open === 'periods'} onToggle={() => toggle('periods')}>
+        <div className="text-xs mb-3" style={{ color: C.dim }}>
+          Applique un statut, une activité ou un état de cycle (actif/off) sur une plage de dates.
         </div>
-      )}
 
-      {periods.length === 0 ? (
-        <div className="text-sm text-center py-4" style={{ color: C.dim }}>
-          Aucune période définie.
-        </div>
-      ) : (
-        [...periods]
-          .sort((a, b) => (a.start < b.start ? 1 : -1))
-          .map((p) => (
-            <PeriodRow key={p.id} period={p} label={`${kindLabels[p.kind]} · ${labelForPeriod(p)}`} color={colorForPeriod(p)} onDelete={() => delPeriod(p.id)} />
-          ))
-      )}
+        {periodKind ? (
+          <PeriodEditor kind={periodKind} cats={catsForKind(periodKind)} onAdd={addPeriod} onCancel={() => setPeriodKind(null)} />
+        ) : (
+          <div className="flex gap-2 mb-4">
+            {(['status', 'activity', 'cycle'] as PeriodKind[]).map((k) => (
+              <button
+                key={k}
+                onClick={() => setPeriodKind(k)}
+                className="flex-1 py-2 rounded-xl text-xs font-semibold"
+                style={{ background: C.surf2, color: C.gold }}
+              >
+                + {kindLabels[k]}
+              </button>
+            ))}
+          </div>
+        )}
+
+        {periods.length === 0 ? (
+          <div className="text-sm text-center py-4" style={{ color: C.dim }}>
+            Aucune période définie.
+          </div>
+        ) : (
+          [...periods]
+            .sort((a, b) => (a.start < b.start ? 1 : -1))
+            .map((p) => (
+              <PeriodRow key={p.id} period={p} label={`${kindLabels[p.kind]} · ${labelForPeriod(p)}`} color={colorForPeriod(p)} onDelete={() => delPeriod(p.id)} />
+            ))
+        )}
+      </Collapsible>
     </div>
   );
 }

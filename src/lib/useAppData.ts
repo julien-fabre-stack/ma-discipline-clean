@@ -53,9 +53,11 @@ export function useAppData(uid: string | null): UseAppDataResult {
         : migrateData({ ...defaultAppData() });
 
       // Première initialisation : crée le document.
-      if (!snap.exists()) {
-        void setDoc(ref, defaultAppData());
-      }
+  if (!snap.exists() && snap.metadata.fromCache === false) {
+  console.log("Création du document Firestore (première initialisation)");
+  void setDoc(ref, defaultAppData());
+}
+
 
       // Archivage des jours trop anciens.
       const { kept, removed, changed } = pruneOldDays(base.days, today);

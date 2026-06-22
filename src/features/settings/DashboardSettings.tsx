@@ -1,7 +1,8 @@
+import { useState } from 'react';
 import type { AppData, Agenda, Habit } from '@/types';
 import { uid } from '@/lib/utils';
 import { useTheme } from '@/shared/theme/ThemeProvider';
-import { Icon, useConfirm } from '@/shared/ui';
+import { Collapsible, Icon, useConfirm } from '@/shared/ui';
 import { AgendaSettings } from './AgendaSettings';
 
 export interface DashboardSettingsProps {
@@ -10,9 +11,10 @@ export interface DashboardSettingsProps {
 }
 
 export function DashboardSettings({ data, update }: DashboardSettingsProps) {
-  const { C, cardShadow } = useTheme();
+  const { C } = useTheme();
   const askConfirm = useConfirm();
   const habits = data.habits || [];
+  const [habitsOpen, setHabitsOpen] = useState(false);
 
   const move = (i: number, dir: number) => {
     const s = [...habits];
@@ -31,13 +33,10 @@ export function DashboardSettings({ data, update }: DashboardSettingsProps) {
 
   return (
     <div className="px-5 pb-10">
-      <div className="text-xs tracking-widest uppercase mb-1 mt-2" style={{ color: C.dim }}>
-        Habitudes quotidiennes
-      </div>
-      <div className="text-xs mb-3" style={{ color: C.dim }}>
-        Ces habitudes apparaissent chaque jour dans le tableau de bord. Une journée « parfaite » = toutes cochées.
-      </div>
-      <div className="rounded-2xl p-3 mb-6" style={{ background: C.surf, border: `1px solid ${C.line}`, boxShadow: cardShadow() }}>
+      <Collapsible title="Habitudes quotidiennes" badge={habits.length || null} open={habitsOpen} onToggle={() => setHabitsOpen((o) => !o)}>
+        <div className="text-xs mb-3" style={{ color: C.dim }}>
+          Ces habitudes apparaissent chaque jour dans le tableau de bord. Une journée « parfaite » = toutes cochées.
+        </div>
         {habits.map((h, i) => (
           <div key={h.id} className="flex items-center gap-2 mb-2 last:mb-0">
             <div className="flex flex-col gap-0.5">
@@ -62,7 +61,7 @@ export function DashboardSettings({ data, update }: DashboardSettingsProps) {
         <button onClick={add} className="w-full py-2 rounded-xl text-sm font-semibold mt-1" style={{ background: C.surf2, color: C.gold }}>
           + Ajouter une habitude
         </button>
-      </div>
+      </Collapsible>
 
       <AgendaSettings
         agenda={data.agenda}

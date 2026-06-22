@@ -7,7 +7,7 @@ import { Icon, Stepper, useConfirm } from '@/shared/ui';
 function WodEditor({ wod, onSave, onCancel }: { wod: Wod; onSave: (w: Wod) => void; onCancel: () => void }) {
   const { C, dawn, glowShadow } = useTheme();
   const [w, setW] = useState<Wod>({ ...wod, items: [...(wod.items || [])] });
-  const setItem = (i: number, patch: Partial<{ name: string; reps: number }>) => {
+  const setItem = (i: number, patch: Partial<{ name: string; dur: number }>) => {
     const it = [...w.items];
     it[i] = { ...it[i], ...patch };
     setW({ ...w, items: it });
@@ -21,11 +21,11 @@ function WodEditor({ wod, onSave, onCancel }: { wod: Wod; onSave: (w: Wod) => vo
         style={{ background: C.surf2, color: C.text }}
       />
       <div className="flex items-center justify-between py-2 text-sm mb-2">
-        <span>Durée (min)</span>
-        <Stepper value={Math.round(w.dur / 60)} min={1} onChange={(v) => setW({ ...w, dur: v * 60 })} />
+        <span>Mise en place entre exercices (s)</span>
+        <Stepper value={w.transitionDur || 10} min={0} step={5} onChange={(v) => setW({ ...w, transitionDur: v })} />
       </div>
       <div className="text-xs mb-2" style={{ color: C.dim }}>
-        Exercices :
+        Exercices (chacun chronométré, enchaînés un à un) :
       </div>
       {w.items.map((it, i) => (
         <div key={i} className="flex items-center gap-2 mb-2">
@@ -36,7 +36,10 @@ function WodEditor({ wod, onSave, onCancel }: { wod: Wod; onSave: (w: Wod) => vo
             className="flex-1 px-3 py-2 rounded-lg outline-none text-sm"
             style={{ background: C.surf2, color: C.text }}
           />
-          <Stepper value={it.reps} min={1} onChange={(v) => setItem(i, { reps: v })} />
+          <Stepper value={it.dur} min={5} step={5} onChange={(v) => setItem(i, { dur: v })} />
+          <span className="text-xs flex-shrink-0" style={{ color: C.dim }}>
+            s
+          </span>
           <button
             onClick={() => setW({ ...w, items: w.items.filter((_, j) => j !== i) })}
             className="p-1.5 rounded-lg"
@@ -47,7 +50,7 @@ function WodEditor({ wod, onSave, onCancel }: { wod: Wod; onSave: (w: Wod) => vo
         </div>
       ))}
       <button
-        onClick={() => setW({ ...w, items: [...w.items, { name: '', reps: 10 }] })}
+        onClick={() => setW({ ...w, items: [...w.items, { name: '', dur: 30 }] })}
         className="w-full py-2 rounded-lg text-sm font-semibold mb-3"
         style={{ background: C.surf2, color: C.gold }}
       >
@@ -80,15 +83,15 @@ export function WodSettings({ data, update }: { data: AppData; update: (patch: P
     if (!lines.length) return null;
     const head = lines[0].split('|');
     const name = (head[0] || 'WOD').trim();
-    const dur = (parseInt(head[1]) || 15) * 60;
+    const transitionDur = parseInt(head[1]) || 10;
     const items = lines
       .slice(1)
       .map((l) => {
         const m = l.match(/^(.*?)[\s:·-]+(\d+)\s*$/);
-        return m ? { name: m[1].trim(), reps: +m[2] } : { name: l, reps: 10 };
+        return m ? { name: m[1].trim(), dur: +m[2] } : { name: l, dur: 30 };
       })
       .filter((x) => x.name);
-    return { id: uid(), name, dur, items };
+    return { id: uid(), name, transitionDur, items };
   };
 
   return (
@@ -97,18 +100,31 @@ export function WodSettings({ data, update }: { data: AppData; update: (patch: P
         WOD
       </div>
       <div className="text-xs mb-3" style={{ color: C.dim }}>
-        L'échauffement (10 burpees + 10 remises debout) est ajouté automatiquement. Touche un WOD pour le modifier.
+        L'échauffement (10 burpees + 10 remises debout) est ajouté automatiquement, puis chaque exercice s'enchaîne avec un temps de mise en place entre eux. Touche un WOD pour le modifier.
       </div>
       {(data.wods || []).map((w, i) => {
         const open = wodOpen === w.id;
+        const totalSec = (w.items || []).reduce((a, it) => a + (it.dur || 0), 0) + Math.max(0, (w.items || []).length - 1) * (w.transitionDur || 10);
         return (
           <div
             key={w.id}
+            id={`wod-${w.id}`}
             className="rounded-2xl mb-3 overflow-hidden"
             style={{ background: C.surf, border: `1px solid ${C.line}`, boxShadow: cardShadow() }}
           >
             <div className="flex items-center px-3 py-2.5 gap-2">
-              <button onClick={() => setWodOpen(open ? null : w.id)} className="flex items-center gap-2 flex-1 min-w-0 text-left">
+              <button
+                onClick={() => {
+                  const willOpen = !open;
+                  setWodOpen(willOpen ? w.id : null);
+                  if (willOpen) {
+                    requestAnimationFrame(() => {
+                      document.getElementById(`wod-${w.id}`)?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+                    });
+                  }
+                }}
+                className="flex items-center gap-2 flex-1 min-w-0 text-left"
+              >
                 <Icon
                   name="down"
                   size={14}
@@ -118,7 +134,7 @@ export function WodSettings({ data, update }: { data: AppData; update: (patch: P
                 <span className="min-w-0">
                   <span className="text-sm font-semibold block truncate">{w.name}</span>
                   <span className="text-xs block" style={{ color: C.dim }}>
-                    {Math.round(w.dur / 60)} min · {(w.items || []).length} exos
+                    ~{Math.round(totalSec / 60)} min · {(w.items || []).length} exos
                   </span>
                 </span>
               </button>
@@ -151,6 +167,9 @@ export function WodSettings({ data, update }: { data: AppData; update: (patch: P
                       a[i] = nw;
                       update({ wods: a });
                       setWodOpen(null);
+                      requestAnimationFrame(() => {
+                        document.getElementById(`wod-${w.id}`)?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+                      });
                     }}
                     onCancel={() => setWodOpen(null)}
                   />
@@ -163,7 +182,7 @@ export function WodSettings({ data, update }: { data: AppData; update: (patch: P
       <button
         onClick={() => {
           const id = uid();
-          update({ wods: [...(data.wods || []), { id, name: 'Nouveau WOD', dur: 900, items: [] }] });
+          update({ wods: [...(data.wods || []), { id, name: 'Nouveau WOD', transitionDur: 10, items: [] }] });
           setWodOpen(id);
         }}
         className="w-full py-2.5 rounded-xl font-semibold text-sm mt-1"
@@ -178,13 +197,13 @@ export function WodSettings({ data, update }: { data: AppData; update: (patch: P
       ) : (
         <div className="rounded-2xl p-4 mt-2" style={{ background: C.surf }}>
           <div className="text-xs mb-2" style={{ color: C.dim }}>
-            Colle le texte du WOD. 1ʳᵉ ligne : <span style={{ color: C.gold }}>Nom | minutes</span>, puis un exercice par ligne avec le nombre de reps à la fin.
+            Colle le texte du WOD. 1ʳᵉ ligne : <span style={{ color: C.gold }}>Nom | secondes de transition</span>, puis un exercice par ligne avec sa durée en secondes à la fin.
           </div>
           <textarea
             value={imp}
             onChange={(e) => setImp(e.target.value)}
             rows={6}
-            placeholder={'Murph allégé | 20\nPompes 15\nAir squats 20\nTractions 5'}
+            placeholder={'Mobilité hanches | 10\nÉtirement papillon 30\nFente latérale 30\nGrand écart assisté 45'}
             className="w-full px-3 py-2.5 rounded-xl outline-none text-sm"
             style={{ background: C.surf2, color: C.text, fontFamily: 'monospace' }}
           />

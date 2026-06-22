@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import type { AppData, Food, NutritionTargets } from '@/types';
-import { normName } from '@/lib/utils';
+import { dateKey, normName } from '@/lib/utils';
 import { useTheme } from '@/shared/theme/ThemeProvider';
-import { Icon, useConfirm } from '@/shared/ui';
+import { Collapsible, Icon, useConfirm } from '@/shared/ui';
 import { CustomFood } from '../nutrition/CustomFood';
 
 export interface NutritionSettingsProps {
@@ -73,12 +73,16 @@ function FoodEditRow({
   );
 }
 
+type Section = 'targets' | 'foods' | 'combos' | 'alcool' | null;
+
 export function NutritionSettings({ data, update }: NutritionSettingsProps) {
   const { C, cardShadow } = useTheme();
   const askConfirm = useConfirm();
   const foods = data.customFoods || [];
   const combos = data.combos || [];
   const targets: NutritionTargets = data.targets;
+  const [open, setOpen] = useState<Section>(null);
+  const toggle = (s: Section) => setOpen((cur) => (cur === s ? null : s));
   const [adding, setAdding] = useState(false);
   const [q, setQ] = useState('');
 
@@ -104,86 +108,109 @@ export function NutritionSettings({ data, update }: NutritionSettingsProps) {
 
   return (
     <div className="px-5 pb-10">
-      <div className="text-xs tracking-widest uppercase mb-3 mt-2" style={{ color: C.dim }}>
-        Objectifs caloriques
-      </div>
-      <div className="rounded-2xl p-4 mb-5" style={{ background: C.surf, border: `1px solid ${C.line}`, boxShadow: cardShadow() }}>
-        {calRows.map(([k, label]) => (
-          <div key={k} className="flex items-center justify-between py-2">
-            <span className="text-sm">{label}</span>
+      <Collapsible title="Objectifs caloriques" open={open === 'targets'} onToggle={() => toggle('targets')}>
+        <div className="rounded-2xl p-4 mb-2" style={{ background: C.surf, border: `1px solid ${C.line}`, boxShadow: cardShadow() }}>
+          {calRows.map(([k, label]) => (
+            <div key={k} className="flex items-center justify-between py-2">
+              <span className="text-sm">{label}</span>
+              <div className="flex items-center gap-2">
+                <input
+                  inputMode="numeric"
+                  value={String(targets[k])}
+                  onChange={(e) => setTarget(k, +e.target.value || 0)}
+                  className="w-20 px-3 py-1.5 rounded-lg text-sm outline-none text-right"
+                  style={{ background: C.surf2, color: C.text, border: `1px solid ${C.line}` }}
+                />
+                <span className="text-xs" style={{ color: C.dim }}>
+                  kcal
+                </span>
+              </div>
+            </div>
+          ))}
+          <div className="flex items-center justify-between py-2" style={{ borderTop: `1px solid ${C.line}` }}>
+            <span className="text-sm">Objectif eau</span>
             <div className="flex items-center gap-2">
               <input
-                inputMode="numeric"
-                value={String(targets[k])}
-                onChange={(e) => setTarget(k, +e.target.value || 0)}
+                inputMode="decimal"
+                value={String(targets.water)}
+                onChange={(e) => setTarget('water', +e.target.value || 0)}
                 className="w-20 px-3 py-1.5 rounded-lg text-sm outline-none text-right"
                 style={{ background: C.surf2, color: C.text, border: `1px solid ${C.line}` }}
               />
               <span className="text-xs" style={{ color: C.dim }}>
-                kcal
+                L
               </span>
             </div>
           </div>
-        ))}
-        <div className="flex items-center justify-between py-2" style={{ borderTop: `1px solid ${C.line}` }}>
-          <span className="text-sm">Objectif eau</span>
-          <div className="flex items-center gap-2">
-            <input
-              inputMode="decimal"
-              value={String(targets.water)}
-              onChange={(e) => setTarget('water', +e.target.value || 0)}
-              className="w-20 px-3 py-1.5 rounded-lg text-sm outline-none text-right"
-              style={{ background: C.surf2, color: C.text, border: `1px solid ${C.line}` }}
-            />
-            <span className="text-xs" style={{ color: C.dim }}>
-              L
-            </span>
-          </div>
         </div>
-      </div>
+      </Collapsible>
 
-      <div className="flex items-center justify-between mb-3">
-        <div className="text-xs tracking-widest uppercase" style={{ color: C.dim }}>
-          Mes aliments ({foods.length})
-        </div>
-        <button onClick={() => setAdding((a) => !a)} className="text-xs font-semibold" style={{ color: C.gold }}>
-          {adding ? 'Fermer' : '+ Créer'}
-        </button>
-      </div>
-      {adding && (
-        <div className="mb-3">
-          <CustomFood
-            onCreate={(f) => {
-              update({ customFoods: [...foods, f] });
-              setAdding(false);
+      <Collapsible title="Compteur sans alcool" open={open === 'alcool'} onToggle={() => toggle('alcool')}>
+        <div className="rounded-2xl p-4 mb-2" style={{ background: C.surf, border: `1px solid ${C.line}`, boxShadow: cardShadow() }}>
+          <div className="text-xs mb-3" style={{ color: C.dim }}>
+            Date de départ du compteur affiché dans le tableau de bord. Le nombre de jours se calcule automatiquement depuis cette date.
+          </div>
+          <div className="text-xs mb-1" style={{ color: C.dim }}>
+            Depuis le
+          </div>
+          <input
+            type="date"
+            max={dateKey()}
+            value={(data.drinkfree && data.drinkfree.start) || dateKey()}
+            onChange={(e) => {
+              if (e.target.value) update({ drinkfree: { start: e.target.value } });
             }}
+            className="w-full px-3 py-2.5 rounded-xl outline-none text-sm"
+            style={{ background: C.surf2, color: C.text, border: `1px solid ${C.line}` }}
           />
         </div>
-      )}
-      {foods.length > 6 && (
-        <input
-          value={q}
-          onChange={(e) => setQ(e.target.value)}
-          placeholder="Rechercher…"
-          className="w-full px-4 py-2.5 rounded-xl mb-3 outline-none text-sm"
-          style={{ background: C.surf, color: C.text, border: `1px solid ${C.line}` }}
-        />
-      )}
-      {shown.length === 0 && (
-        <div className="text-sm text-center py-6" style={{ color: C.dim }}>
-          {foods.length === 0 ? 'Aucun aliment personnel pour l\'instant.' : 'Aucun résultat.'}
-        </div>
-      )}
-      {shown.map((f) => (
-        <FoodEditRow key={f.id} food={f} onChange={(p) => setFood(f.id, p)} onDelete={() => delFood(f)} />
-      ))}
+      </Collapsible>
 
-      {combos.length > 0 && (
-        <>
-          <div className="text-xs tracking-widest uppercase mb-3 mt-6" style={{ color: C.dim }}>
-            Repas enregistrés ({combos.length})
+      <Collapsible title="Mes aliments" badge={foods.length || null} open={open === 'foods'} onToggle={() => toggle('foods')}>
+        <div className="flex items-center justify-between mb-3">
+          <span className="text-xs" style={{ color: C.dim }}>
+            {foods.length} aliment{foods.length > 1 ? 's' : ''} personnel{foods.length > 1 ? 's' : ''}
+          </span>
+          <button onClick={() => setAdding((a) => !a)} className="text-xs font-semibold" style={{ color: C.gold }}>
+            {adding ? 'Fermer' : '+ Créer'}
+          </button>
+        </div>
+        {adding && (
+          <div className="mb-3">
+            <CustomFood
+              onCreate={(f) => {
+                update({ customFoods: [...foods, f] });
+                setAdding(false);
+              }}
+            />
           </div>
-          {combos.map((c) => (
+        )}
+        {foods.length > 6 && (
+          <input
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+            placeholder="Rechercher…"
+            className="w-full px-4 py-2.5 rounded-xl mb-3 outline-none text-sm"
+            style={{ background: C.surf, color: C.text, border: `1px solid ${C.line}` }}
+          />
+        )}
+        {shown.length === 0 && (
+          <div className="text-sm text-center py-6" style={{ color: C.dim }}>
+            {foods.length === 0 ? "Aucun aliment personnel pour l'instant." : 'Aucun résultat.'}
+          </div>
+        )}
+        {shown.map((f) => (
+          <FoodEditRow key={f.id} food={f} onChange={(p) => setFood(f.id, p)} onDelete={() => delFood(f)} />
+        ))}
+      </Collapsible>
+
+      <Collapsible title="Repas enregistrés" badge={combos.length || null} open={open === 'combos'} onToggle={() => toggle('combos')}>
+        {combos.length === 0 ? (
+          <div className="text-sm text-center py-6" style={{ color: C.dim }}>
+            Aucun repas enregistré pour l'instant.
+          </div>
+        ) : (
+          combos.map((c) => (
             <div key={c.id} className="flex items-center px-3 py-2.5 rounded-xl mb-2" style={{ background: C.surf2 }}>
               <div className="flex-1 min-w-0">
                 <div className="text-sm truncate">{c.name}</div>
@@ -195,9 +222,9 @@ export function NutritionSettings({ data, update }: NutritionSettingsProps) {
                 <Icon name="trash" size={14} color={C.dim} />
               </button>
             </div>
-          ))}
-        </>
-      )}
+          ))
+        )}
+      </Collapsible>
     </div>
   );
 }

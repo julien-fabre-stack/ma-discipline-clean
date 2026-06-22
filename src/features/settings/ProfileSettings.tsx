@@ -168,7 +168,7 @@ export function ProfileSettings({ data, update }: ProfileSettingsProps) {
               message: 'Le compteur « sans alcool » repart de zéro aujourd\'hui ?',
               confirmLabel: 'Remettre à zéro',
             });
-            if (ok) update({ drinkfree: { date: dateKey(), count: 0 } });
+            if (ok) update({ drinkfree: { start: dateKey() } });
           }}
           className="w-full py-2.5 rounded-xl font-semibold text-sm"
           style={{ background: C.surf2, color: C.ember }}

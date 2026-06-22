@@ -23,7 +23,7 @@ const WEEKDAYS: [string, number][] = [
 ];
 
 export function TrainingSettings({ data, update }: TrainingSettingsProps) {
-  const { C, dawn, cardShadow, glowShadow } = useTheme();
+  const { C, dawn, cardShadow } = useTheme();
   const askConfirm = useConfirm();
   const workouts = getWorkouts(data);
   const wt = data.weekTemplate || {};
@@ -52,15 +52,19 @@ export function TrainingSettings({ data, update }: TrainingSettingsProps) {
     if (!ok) return;
     const nwt = { ...wt };
     Object.keys(nwt).forEach((k) => {
-      if (nwt[+k] === id) delete nwt[+k];
+      const arr = (nwt[+k] || []).filter((x) => x !== id);
+      if (arr.length) nwt[+k] = arr;
+      else delete nwt[+k];
     });
     update({ workouts: workouts.filter((w) => w.id !== id), weekTemplate: nwt });
     if (openW === id) setOpenW(null);
   };
-  const setDayWorkout = (wd: number, wid: string) => {
+  const toggleDayWorkout = (wd: number, wid: string) => {
+    const cur = wt[wd] || [];
     const nwt = { ...wt };
-    if (!wid) delete nwt[wd];
-    else nwt[wd] = wid;
+    const next = cur.includes(wid) ? cur.filter((x) => x !== wid) : [...cur, wid];
+    if (next.length) nwt[wd] = next;
+    else delete nwt[wd];
     update({ weekTemplate: nwt });
   };
 
@@ -126,65 +130,42 @@ export function TrainingSettings({ data, update }: TrainingSettingsProps) {
         Semaine type
       </div>
       <div className="text-xs mb-3" style={{ color: C.dim }}>
-        Choisis quelle séance se déclenche chaque jour. « Repos » = pas de séance.
+        Touche les séances à appliquer chaque jour. Plusieurs possibles par jour. Aucune = repos.
       </div>
       <div className="rounded-2xl overflow-hidden mb-6" style={{ border: `1px solid ${C.line}`, boxShadow: cardShadow() }}>
-        {WEEKDAYS.map(([lbl, wd], i) => (
-          <div
-            key={wd}
-            className="flex items-center justify-between px-4 py-2.5"
-            style={{ background: i % 2 ? C.surf : C.night, borderTop: i > 0 ? `1px solid ${C.line}` : 'none' }}
-          >
-            <span className="text-sm">{lbl}</span>
-            <select
-              value={wt[wd] || ''}
-              onChange={(e) => setDayWorkout(wd, e.target.value)}
-              className="px-3 py-1.5 rounded-lg text-sm outline-none"
-              style={{ background: C.surf2, color: C.text, border: `1px solid ${C.line}` }}
+        {WEEKDAYS.map(([lbl, wd], i) => {
+          const sel = wt[wd] || [];
+          return (
+            <div
+              key={wd}
+              className="px-4 py-2.5"
+              style={{ background: i % 2 ? C.surf : C.night, borderTop: i > 0 ? `1px solid ${C.line}` : 'none' }}
             >
-              <option value="">Repos</option>
-              {workouts.map((w) => (
-                <option key={w.id} value={w.id}>
-                  {w.name}
-                </option>
-              ))}
-            </select>
-          </div>
-        ))}
+              <div className="text-sm mb-2">
+                {lbl}
+                {sel.length ? '' : ' · repos'}
+              </div>
+              <div className="flex gap-2 flex-wrap">
+                {workouts.map((w) => {
+                  const on = sel.includes(w.id);
+                  return (
+                    <button
+                      key={w.id}
+                      onClick={() => toggleDayWorkout(wd, w.id)}
+                      className="px-3 py-1.5 rounded-full text-xs font-semibold"
+                      style={{ background: on ? dawn : C.surf2, color: on ? '#1A1206' : C.dim }}
+                    >
+                      {w.name}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          );
+        })}
       </div>
 
       <WodSettings data={data} update={update} />
-
-      <div className="h-px my-6" style={{ background: C.line }} />
-      <div className="text-xs tracking-widest uppercase mb-2" style={{ color: C.dim }}>
-        Cycle d'entraînement
-      </div>
-      <div className="rounded-2xl p-4" style={{ background: C.surf, border: `1px solid ${C.line}`, boxShadow: cardShadow() }}>
-        <div className="text-sm mb-3" style={{ color: C.dim }}>
-          Date de départ du cycle 9 semaines (8 actives + 1 décharge). Sert au libellé « Semaine N/8 ».
-        </div>
-        <input
-          type="date"
-          value={data.cycleStart || ''}
-          onChange={(e) => update({ cycleStart: e.target.value })}
-          className="w-full px-3 py-2.5 rounded-xl outline-none text-sm"
-          style={{ background: C.surf2, color: C.text, border: `1px solid ${C.line}` }}
-        />
-        <button
-          onClick={async () => {
-            const ok = await askConfirm({
-              title: 'Réinitialiser le cycle',
-              message: "Repartir d'aujourd'hui comme semaine 1 ?",
-              confirmLabel: 'Réinitialiser',
-            });
-            if (ok) update({ cycleStart: new Date().toISOString().slice(0, 10) });
-          }}
-          className="w-full mt-3 py-2.5 rounded-xl font-semibold text-sm"
-          style={{ background: dawn, color: '#1A1206', boxShadow: glowShadow() }}
-        >
-          Repartir d'aujourd'hui
-        </button>
-      </div>
     </div>
   );
 }

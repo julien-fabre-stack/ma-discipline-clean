@@ -101,11 +101,15 @@ export function NutritionTab({ data, update, today, openSettings }: NutritionTab
   ];
 
   return (
-    <div className="px-5 pt-6 pb-28">
-      <div className="sticky top-0 z-20 pb-3 -mx-5 px-5 pt-2" style={{ background: C.night }}>
+    <div className="px-5 pb-28">
+      <div
+  className="sticky z-20 pb-3 -mx-5 px-5"
+  style={{ top: 0, paddingTop: 'calc(env(safe-area-inset-top) + 20px)', background: C.night }}
+>
+
         <div className="flex items-start justify-between mb-3">
           <h1 className="text-3xl font-extrabold tracking-tight">Nutrition</h1>
-          <button onClick={openSettings} className="p-2 rounded-full mt-1" style={{ background: C.surf }}>
+          <button onClick={openSettings} className="p-2 rounded-full" style={{ background: C.surf }}>
             <Icon name="gear" size={20} color={C.dim} />
           </button>
         </div>

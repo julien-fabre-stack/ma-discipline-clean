@@ -4,7 +4,7 @@ import { auth, firebaseReady } from '@/lib/firebase';
 import { useAppData } from '@/lib/useAppData';
 import { useOnlineStatus } from '@/lib/useOnlineStatus';
 import { dateKey } from '@/lib/utils';
-import { expandSession, workoutForDay } from '@/lib/workouts';
+import { expandSession, getWorkouts, workoutForDay } from '@/lib/workouts';
 import { ThemeProvider, useTheme } from '@/shared/theme/ThemeProvider';
 import { ConfirmProvider, Icon } from '@/shared/ui';
 import type { AppData } from '@/types';
@@ -26,8 +26,7 @@ const TABS: [TabKey, string, 'dumbbell' | 'apple' | 'calendar'][] = [
 ];
 
 /**
- * Contenu principal de l'app authentifiée. Reçoit `data` garanti non-null,
- * ce qui élimine les vérifications de nullité dans tout l'arbre enfant.
+ * Contenu principal de l'app authentifiée.
  */
 function AuthedApp({
   data,
@@ -44,15 +43,18 @@ function AuthedApp({
 }) {
   const { C, dawn, hexA, glowShadow } = useTheme();
   const [tab, setTab] = useState<TabKey>('seance');
-  const [runnerIdx, setRunnerIdx] = useState<number | null>(null);
+  const [runner, setRunner] = useState<{ wid: string; idx: number } | null>(null);
   const [wod, setWod] = useState<Wod | null>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
 
   const today = dateKey();
   const todayWorkout = workoutForDay(data, today);
+  const runnerWorkout = runner
+    ? getWorkouts(data).find((w) => w.id === runner.wid) || todayWorkout
+    : null;
   const steps = useMemo(
-    () => expandSession(todayWorkout ? todayWorkout.items : []),
-    [todayWorkout]
+    () => expandSession(runnerWorkout ? runnerWorkout.items : []),
+    [runnerWorkout]
   );
 
   const markSport = () => {
@@ -102,12 +104,13 @@ function AuthedApp({
           <SeanceTab
             data={data}
             markSport={markSport}
-            openRunner={(idx) => setRunnerIdx(idx)}
+            openRunner={(wid, idx) => setRunner({ wid, idx })}
             openWod={(w) => setWod(w)}
             openSettings={() => setSettingsOpen(true)}
           />
         </div>
       )}
+
       {tab === 'nutrition' && (
         <div key="nutrition" className="tab-enter">
           <NutritionTab
@@ -118,6 +121,7 @@ function AuthedApp({
           />
         </div>
       )}
+
       {tab === 'suivi' && (
         <div key="suivi" className="tab-enter">
           <SuiviTab
@@ -129,20 +133,21 @@ function AuthedApp({
         </div>
       )}
 
-      {runnerIdx !== null && (
+      {runner !== null && (
         <Runner
           steps={steps}
-          startIdx={runnerIdx}
+          startIdx={runner.idx}
           data={data}
-          onProgress={(idx) => update({ progress: { idx } })}
-          onClose={() => setRunnerIdx(null)}
+          onProgress={(idx) => update({ progress: { wid: runner.wid, idx } })}
+          onClose={() => setRunner(null)}
           onDone={() => {
             update({ progress: null });
             markSport();
-            setRunnerIdx(null);
+            setRunner(null);
           }}
         />
       )}
+
       {wod && (
         <WodRunner
           wod={wod}
@@ -153,6 +158,7 @@ function AuthedApp({
           }}
         />
       )}
+
       {settingsOpen && (
         <Settings
           data={data}
@@ -187,7 +193,7 @@ function AuthedApp({
           </button>
         ))}
       </div>
-      {/* Ancre le dawn/glowShadow pour les exports — évite un warning "unused" */}
+
       <span style={{ display: 'none', background: dawn, boxShadow: glowShadow() }} />
     </div>
   );
@@ -198,7 +204,11 @@ export function App() {
   const [user, setUser] = useState<User | null>(null);
   const [authReady, setAuthReady] = useState(false);
   const online = useOnlineStatus();
-  const { data, update, pendingWrites } = useAppData(user?.uid ?? null);
+
+  // ✅ useAppData est TOUJOURS appelé (jamais conditionnellement).
+  // On lui passe null tant que l'auth n'est pas prête : il gère ce cas en interne
+  // (son useEffect fait `if (!uid || !db) { setData(null); return; }`).
+  const appData = useAppData(authReady && user ? user.uid : null);
 
   useEffect(() => {
     if (!firebaseReady || !auth) {
@@ -211,8 +221,8 @@ export function App() {
     });
   }, []);
 
-  const themeId = data?.theme || 'aube';
-  const accent = data?.accent || null;
+  const themeId = appData.data?.theme || 'aube';
+  const accent = appData.data?.accent || null;
 
   return (
     <ThemeProvider themeId={themeId} accent={accent}>
@@ -220,10 +230,10 @@ export function App() {
         <AppGate
           authReady={authReady}
           user={user}
-          data={data}
-          update={update}
+          data={appData.data}
+          update={appData.update}
           online={online}
-          pendingWrites={pendingWrites}
+          pendingWrites={appData.pendingWrites}
           onLogout={() => auth && signOut(auth)}
         />
       </ConfirmProvider>
@@ -251,7 +261,6 @@ function AppGate({
 }) {
   const { C } = useTheme();
 
-  // Applique la couleur de fond au body (au lieu de muter document.body un peu partout).
   useEffect(() => {
     document.body.style.background = C.night;
   }, [C.night]);
@@ -266,6 +275,7 @@ function AppGate({
       </div>
     );
   }
+
   if (!firebaseReady) {
     return (
       <div
@@ -276,7 +286,9 @@ function AppGate({
       </div>
     );
   }
+
   if (!user) return <Login />;
+
   if (!data) {
     return (
       <div
@@ -287,6 +299,7 @@ function AppGate({
       </div>
     );
   }
+
   return (
     <AuthedApp
       data={data}

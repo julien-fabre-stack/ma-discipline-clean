@@ -121,7 +121,7 @@ export function Settings({ data, update, onClose, onLogout }: SettingsProps) {
           {sec === 'apparence' && <ThemeSettings data={data} update={update} />}
           {sec === 'debutant' && (
             <div className="px-5">
-              <BeginnerQuestionnaire embedded onClose={() => setSection(null)} />
+              <BeginnerQuestionnaire key={section === 'debutant' ? 'deb-open' : 'deb-idle'} embedded onClose={() => setSection(null)} />
             </div>
           )}
           {sec === 'aide' && <HelpSettings />}

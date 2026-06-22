@@ -45,6 +45,7 @@ export function exerciseImageFile(name: string | undefined): string | null {
   if (n.includes('mountain') || n.includes('grimpeur')) return 'mountain-climbers.jpg';
   if (n.includes('shoulder') || n.includes('epaule')) return 'shoulder-tap.jpg';
   if (n.includes('bear') || n.includes('ours') || n.includes('quadrup')) return 'bear-crawling.jpg';
+  if (n.includes('medit')) return 'meditation.jpg';
   return null;
 }
 

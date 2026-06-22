@@ -8,7 +8,7 @@ import type {
   WeekTemplate,
   Workout,
 } from '@/types';
-import { dateKey } from './utils';
+import { addDays, dateKey } from './utils';
 
 export const MEALS: [MealKey, string][] = [
   ['petitdej', 'Petit Déjeuner'],
@@ -161,10 +161,10 @@ export const RDV_COLORS = [
 ];
 
 export const DEFAULT_WEEK_TEMPLATE: WeekTemplate = {
-  1: 'law',
-  2: 'law',
-  4: 'law',
-  5: 'law',
+  1: ['law'],
+  2: ['law'],
+  4: ['law'],
+  5: ['law'],
 };
 
 export function defaultAgenda(): Agenda {
@@ -184,7 +184,7 @@ export function defaultWorkouts(): Workout[] {
 export function defaultAppData(): AppData {
   return {
     cycleStart: dateKey(),
-    drinkfree: { date: dateKey(), count: 0 },
+    drinkfree: { start: dateKey() },
     targets: { train: 2400, recup: 2050, repos: 1800, water: 2 },
     profile: { name: '', birthdate: '', height: '', weight: '', goals: '', photo: '' },
     workouts: defaultWorkouts(),
@@ -193,11 +193,11 @@ export function defaultAppData(): AppData {
       {
         id: 'w1',
         name: 'WOD exemple',
-        dur: 900,
+        transitionDur: 10,
         items: [
-          { name: 'Pompes', reps: 15 },
-          { name: 'Air squats', reps: 20 },
-          { name: 'Mountain climbers', reps: 30 },
+          { name: 'Pompes', dur: 30 },
+          { name: 'Air squats', dur: 30 },
+          { name: 'Mountain climbers', dur: 30 },
         ],
       },
     ],
@@ -225,7 +225,26 @@ export function migrateData(raw: Partial<AppData> & Record<string, unknown>): Ap
   }
   if (!x.weekTemplate || !Object.keys(x.weekTemplate).length) {
     const w0 = x.workouts[0].id;
-    x.weekTemplate = { 1: w0, 2: w0, 4: w0, 5: w0 };
+    x.weekTemplate = { 1: [w0], 2: [w0], 4: [w0], 5: [w0] };
+  } else {
+    // Normalise l'ancien modèle mono-séance ({jour: id}) vers une liste ({jour: [id]}).
+    const nt: WeekTemplate = {};
+    for (const k of Object.keys(x.weekTemplate)) {
+      const v = (x.weekTemplate as Record<number, string | string[]>)[+k];
+      if (Array.isArray(v)) {
+        if (v.length) nt[+k] = v;
+      } else if (v) {
+        nt[+k] = [v];
+      }
+    }
+    x.weekTemplate = nt;
+  }
+  // Compteur sans alcool : nouveau modèle basé sur une date de départ.
+  const df = x.drinkfree as unknown as { start?: string; date?: string; count?: number };
+  if (!df || !df.start) {
+    const baseDate = (df && df.date) || dateKey();
+    const baseCount = (df && df.count) || 0;
+    x.drinkfree = { start: addDays(baseDate, -baseCount) };
   }
   if (!x.profile) {
     x.profile = { name: '', birthdate: '', height: '', weight: '', goals: '', photo: '' };

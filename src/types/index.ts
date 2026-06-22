@@ -25,24 +25,26 @@ export interface Workout {
   items: Exercise[];
 }
 
-/** jour de semaine JS (0 = dimanche ... 6 = samedi) -> id de Workout */
-export type WeekTemplate = Partial<Record<number, string>>;
+/** jour de semaine JS (0 = dimanche ... 6 = samedi) -> liste d'ids de Workout */
+export type WeekTemplate = Partial<Record<number, string[]>>;
 
 export interface SessionProgress {
   idx: number;
+  wid?: string; // id du workout en cours (multi-séances par jour)
 }
 
 // ===== WOD =====
 
 export interface WodItem {
   name: string;
-  reps: number;
+  dur: number; // durée de l'exercice en secondes
 }
 
 export interface Wod {
   id: string;
   name: string;
-  dur: number; // secondes
+  /** Délai de "mise en place" entre deux exercices, en secondes. */
+  transitionDur: number;
   items: WodItem[];
 }
 
@@ -170,8 +172,7 @@ export type ThemeId = 'aube' | 'nuit' | 'ardoise' | 'aurore' | 'foret';
 // ===== Document principal =====
 
 export interface DrinkFreeCounter {
-  date: string; // dateKey de référence
-  count: number; // jours déjà comptés à cette date
+  start: string; // dateKey de départ ; le nb de jours se calcule depuis cette date
 }
 
 export interface AppData {

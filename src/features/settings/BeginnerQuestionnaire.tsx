@@ -105,7 +105,7 @@ export function BeginnerQuestionnaire({ embedded = false }: BeginnerQuestionnair
 
   if (result) {
     return (
-      <div className={embedded ? 'pb-8' : 'flex-1 overflow-y-auto px-5 pt-6 pb-10'}>
+      <div className={embedded ? 'w-full pb-8' : 'flex-1 overflow-y-auto px-5 pt-6 pb-10'}>
         <div className="text-sm font-bold mb-2" style={{ color: C.gold }}>
           📋 Ton questionnaire est prêt
         </div>
@@ -141,7 +141,7 @@ export function BeginnerQuestionnaire({ embedded = false }: BeginnerQuestionnair
   }
 
   return (
-    <div className={embedded ? 'pb-8' : 'flex-1 overflow-y-auto px-5 pt-6 pb-10'}>
+    <div className={embedded ? 'w-full pb-8' : 'flex-1 overflow-y-auto px-5 pt-6 pb-10'}>
       <div className="flex items-center gap-2 mb-4">
         <div className="flex-1 h-1.5 rounded-full overflow-hidden" style={{ background: C.surf2 }}>
           <div

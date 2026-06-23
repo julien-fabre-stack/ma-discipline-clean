@@ -1,0 +1,112 @@
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from 'react';
+import {
+  checkVerifier,
+  decryptText,
+  deriveKey,
+  encryptText,
+  makeVerifier,
+  type CipherPayload,
+} from '@/lib/journalCrypto';
+
+/**
+ * Session de déverrouillage du journal.
+ *
+ * Garde la CryptoKey dérivée du PIN EN MÉMOIRE uniquement (jamais persistée).
+ * Tant que `unlocked` est false, impossible de lire/écrire des entrées.
+ * Le déverrouillage dure le temps de la session (jusqu'au rechargement).
+ */
+
+interface JournalSessionValue {
+  /** true si un PIN a déjà été configuré (verifier présent). */
+  hasPin: boolean;
+  /** true si la clé est en mémoire (PIN saisi cette session). */
+  unlocked: boolean;
+  /** Définit le PIN pour la première fois. Renvoie le verifier à persister. */
+  createPin: (pin: string, uid: string) => Promise<CipherPayload>;
+  /** Tente de déverrouiller avec un PIN. true si correct. */
+  unlock: (pin: string, uid: string) => Promise<boolean>;
+  /** Verrouille (oublie la clé en mémoire). */
+  lock: () => void;
+  /** Chiffre un texte (nécessite unlocked). */
+  encrypt: (plain: string) => Promise<CipherPayload>;
+  /** Déchiffre une charge (nécessite unlocked). */
+  decrypt: (payload: CipherPayload) => Promise<string>;
+}
+
+const Ctx = createContext<JournalSessionValue | null>(null);
+
+export function JournalSessionProvider({
+  verifier,
+  children,
+}: {
+  verifier: CipherPayload | null;
+  children: ReactNode;
+}) {
+  const keyRef = useRef<CryptoKey | null>(null);
+  const [unlocked, setUnlocked] = useState(false);
+
+  const createPin = useCallback(async (pin: string, uid: string) => {
+    const key = await deriveKey(pin, uid);
+    keyRef.current = key;
+    setUnlocked(true);
+    return makeVerifier(key);
+  }, []);
+
+  const unlock = useCallback(
+    async (pin: string, uid: string) => {
+      if (!verifier) return false;
+      const key = await deriveKey(pin, uid);
+      const ok = await checkVerifier(key, verifier);
+      if (ok) {
+        keyRef.current = key;
+        setUnlocked(true);
+      }
+      return ok;
+    },
+    [verifier]
+  );
+
+  const lock = useCallback(() => {
+    keyRef.current = null;
+    setUnlocked(false);
+  }, []);
+
+  const encrypt = useCallback(async (plain: string) => {
+    if (!keyRef.current) throw new Error('Journal verrouillé');
+    return encryptText(keyRef.current, plain);
+  }, []);
+
+  const decrypt = useCallback(async (payload: CipherPayload) => {
+    if (!keyRef.current) throw new Error('Journal verrouillé');
+    return decryptText(keyRef.current, payload);
+  }, []);
+
+  const value = useMemo<JournalSessionValue>(
+    () => ({
+      hasPin: verifier != null,
+      unlocked,
+      createPin,
+      unlock,
+      lock,
+      encrypt,
+      decrypt,
+    }),
+    [verifier, unlocked, createPin, unlock, lock, encrypt, decrypt]
+  );
+
+  return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
+}
+
+export function useJournalSession(): JournalSessionValue {
+  const v = useContext(Ctx);
+  if (!v) throw new Error('useJournalSession hors JournalSessionProvider');
+  return v;
+}

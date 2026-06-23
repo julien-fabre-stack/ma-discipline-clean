@@ -1,21 +1,3 @@
-/**
- * Chiffrement du journal — Web Crypto natif (aucune dépendance).
- *
- * Principe :
- *  - Le PIN n'est JAMAIS stocké. Il sert uniquement à dériver une clé AES-GCM
- *    (via PBKDF2) en mémoire, le temps de la session.
- *  - Chaque entrée est chiffrée avec un IV aléatoire propre.
- *  - Firestore ne reçoit que { iv, ct } en base64 : du texte illisible.
- *
- * ⚠️ Sans le PIN, les entrées sont DÉFINITIVEMENT irrécupérables.
- *
- * Vérification du PIN :
- *  - À la création, on chiffre une phrase témoin fixe (VERIFIER_PLAIN) et on
- *    stocke le résultat dans Firestore (journalMeta.verifier).
- *  - À chaque déverrouillage, on tente de déchiffrer ce témoin : si ça réussit
- *    et qu'on retrouve la phrase, le PIN est bon.
- */
-
 const enc = new TextEncoder();
 const dec = new TextDecoder();
 
@@ -68,15 +50,24 @@ export async function deriveKey(pin: string, uid: string): Promise<CryptoKey> {
 }
 
 export async function encryptText(key: CryptoKey, plain: string): Promise<CipherPayload> {
-  const iv = crypto.getRandomValues(new Uint8Array(12));
-  const ct = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, enc.encode(plain));
-  return { iv: bufToB64(iv.buffer), ct: bufToB64(ct) };
+  const ivArray = crypto.getRandomValues(new Uint8Array(12));
+  const ivBuffer = ivArray.buffer as ArrayBuffer;
+  const ct = await crypto.subtle.encrypt(
+    { name: 'AES-GCM', iv: ivArray },
+    key,
+    enc.encode(plain)
+  );
+  return { iv: bufToB64(ivBuffer), ct: bufToB64(ct) };
 }
 
 export async function decryptText(key: CryptoKey, payload: CipherPayload): Promise<string> {
   const iv = b64ToBuf(payload.iv);
   const ct = b64ToBuf(payload.ct);
-  const plain = await crypto.subtle.decrypt({ name: 'AES-GCM', iv }, key, ct);
+  const plain = await crypto.subtle.decrypt(
+    { name: 'AES-GCM', iv },
+    key,
+    ct.buffer as ArrayBuffer
+  );
   return dec.decode(plain);
 }
 

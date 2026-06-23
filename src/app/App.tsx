@@ -15,28 +15,30 @@ import { WodRunner } from '@/features/seance/WodRunner';
 import { NutritionTab } from '@/features/nutrition/NutritionTab';
 import { SuiviTab } from '@/features/suivi/SuiviTab';
 import { Settings } from '@/features/settings/Settings';
+import { JournalTab } from '@/features/journal/JournalTab';
+import { JournalSessionProvider } from '@/features/journal/JournalSession';
 import type { Wod } from '@/types';
 
-type TabKey = 'seance' | 'nutrition' | 'suivi';
+type TabKey = 'seance' | 'nutrition' | 'suivi' | 'journal';
 
-const TABS: [TabKey, string, 'dumbbell' | 'apple' | 'calendar'][] = [
+const TABS: [TabKey, string, 'dumbbell' | 'apple' | 'calendar' | 'edit'][] = [
   ['seance', 'Séance', 'dumbbell'],
   ['nutrition', 'Nutrition', 'apple'],
   ['suivi', 'Suivi', 'calendar'],
+  ['journal', 'Journal', 'edit'],
 ];
 
-/**
- * Contenu principal de l'app authentifiée.
- */
 function AuthedApp({
   data,
   update,
+  uid,
   online,
   pendingWrites,
   onLogout,
 }: {
   data: AppData;
   update: (patch: Partial<AppData>) => void;
+  uid: string;
   online: boolean;
   pendingWrites: boolean;
   onLogout: () => void;
@@ -46,6 +48,12 @@ function AuthedApp({
   const [runner, setRunner] = useState<{ wid: string; idx: number } | null>(null);
   const [wod, setWod] = useState<Wod | null>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [journalDay, setJournalDay] = useState<string | null>(null);
+
+  const openJournalDay = (day: string) => {
+    setJournalDay(day);
+    setTab('journal');
+  };
 
   const today = dateKey();
   const todayWorkout = workoutForDay(data, today);
@@ -71,6 +79,7 @@ function AuthedApp({
   const navAlpha = data.navAlpha == null ? 0.92 : data.navAlpha;
 
   return (
+    <JournalSessionProvider verifier={data.journalMeta?.verifier ?? null}>
     <div
       style={{
         background: C.night,
@@ -129,6 +138,20 @@ function AuthedApp({
             update={update}
             today={today}
             openSettings={() => setSettingsOpen(true)}
+            openJournalDay={openJournalDay}
+          />
+        </div>
+      )}
+
+      {tab === 'journal' && (
+        <div key="journal" className="tab-enter">
+          <JournalTab
+            update={update}
+            uid={uid}
+            today={today}
+            openSettings={() => setSettingsOpen(true)}
+            initialDay={journalDay}
+            onConsumeInitialDay={() => setJournalDay(null)}
           />
         </div>
       )}
@@ -196,18 +219,15 @@ function AuthedApp({
 
       <span style={{ display: 'none', background: dawn, boxShadow: glowShadow() }} />
     </div>
+    </JournalSessionProvider>
   );
 }
 
-/** Gère l'état d'authentification et choisit l'écran à afficher. */
 export function App() {
   const [user, setUser] = useState<User | null>(null);
   const [authReady, setAuthReady] = useState(false);
   const online = useOnlineStatus();
 
-  // ✅ useAppData est TOUJOURS appelé (jamais conditionnellement).
-  // On lui passe null tant que l'auth n'est pas prête : il gère ce cas en interne
-  // (son useEffect fait `if (!uid || !db) { setData(null); return; }`).
   const appData = useAppData(authReady && user ? user.uid : null);
 
   useEffect(() => {
@@ -241,7 +261,6 @@ export function App() {
   );
 }
 
-/** Aiguillage entre les états : chargement / non configuré / login / sync / app. */
 function AppGate({
   authReady,
   user,
@@ -304,6 +323,7 @@ function AppGate({
     <AuthedApp
       data={data}
       update={update}
+      uid={user.uid}
       online={online}
       pendingWrites={pendingWrites}
       onLogout={onLogout}

@@ -16,7 +16,7 @@ export interface Exercise {
   rest: number;
   sets: number;
   timed: boolean;
-  dur: number; // secondes, utilisé si timed === true
+  dur: number;
 }
 
 export interface Workout {
@@ -25,25 +25,23 @@ export interface Workout {
   items: Exercise[];
 }
 
-/** jour de semaine JS (0 = dimanche ... 6 = samedi) -> liste d'ids de Workout */
 export type WeekTemplate = Partial<Record<number, string[]>>;
 
 export interface SessionProgress {
   idx: number;
-  wid?: string; // id du workout en cours (multi-séances par jour)
+  wid?: string;
 }
 
 // ===== WOD =====
 
 export interface WodItem {
   name: string;
-  dur: number; // durée de l'exercice en secondes
+  dur: number;
 }
 
 export interface Wod {
   id: string;
   name: string;
-  /** Délai de "mise en place" entre deux exercices, en secondes. */
   transitionDur: number;
   items: WodItem[];
 }
@@ -57,13 +55,13 @@ export interface Food {
   name: string;
   unit: FoodUnit;
   kcal: number;
-  p: number; // protéines
-  c: number; // glucides
-  f: number; // lipides
+  p: number;
+  c: number;
+  f: number;
 }
 
 export interface MealEntry {
-  id: string; // référence vers Food.id (perso ou CIQUAL importé)
+  id: string;
   qty: number;
 }
 
@@ -88,7 +86,7 @@ export interface NutritionTargets {
   train: number;
   recup: number;
   repos: number;
-  water: number; // litres
+  water: number;
 }
 
 // ===== Habitudes =====
@@ -98,7 +96,6 @@ export interface Habit {
   label: string;
 }
 
-/** clé d'habitude -> coché ou non, pour un jour donné */
 export type DayHabits = Record<string, boolean>;
 
 // ===== Agenda =====
@@ -115,15 +112,15 @@ export interface Period {
   id: string;
   kind: PeriodKind;
   catId: string;
-  start: string; // dateKey
-  end: string; // dateKey
+  start: string;
+  end: string;
 }
 
 export interface AgendaEvent {
   id: string;
-  date: string; // dateKey
+  date: string;
   label: string;
-  time: string; // "HH:MM" ou ""
+  time: string;
   typeId: string | null;
   color: string;
 }
@@ -152,27 +149,33 @@ export interface DayEntry {
   note?: string;
 }
 
-export type DaysMap = Record<string, DayEntry>; // clé = dateKey "YYYY-MM-DD"
+export type DaysMap = Record<string, DayEntry>;
 
 // ===== Profil =====
 
 export interface Profile {
   name: string;
-  birthdate: string; // dateKey ou ""
+  birthdate: string;
   height: string;
   weight: string;
   goals: string;
-  photo: string; // data URL
+  photo: string;
 }
 
 // ===== Thème / apparence =====
 
 export type ThemeId = 'aube' | 'nuit' | 'ardoise' | 'aurore' | 'foret';
 
+// ===== Chiffrement journal =====
+
+export interface JournalMeta {
+  verifier: { iv: string; ct: string };
+}
+
 // ===== Document principal =====
 
 export interface DrinkFreeCounter {
-  start: string; // dateKey de départ ; le nb de jours se calcule depuis cette date
+  start: string;
 }
 
 export interface AppData {
@@ -190,6 +193,9 @@ export interface AppData {
   progress: SessionProgress | null;
   agenda: Agenda;
 
+  /** Chiffrement du journal (optionnel tant que pas configuré). */
+  journalMeta?: JournalMeta;
+
   // Apparence
   theme?: ThemeId;
   accent?: string | null;
@@ -198,7 +204,7 @@ export interface AppData {
   runnerFinishMsg?: string;
 }
 
-// ===== Runner (lecteur de séance) =====
+// ===== Runner =====
 
 export type StepKind = 'work' | 'rest' | 'timed';
 

@@ -12,24 +12,26 @@ import { dateKey, pruneOldDays } from './utils';
 
 export interface UseAppDataResult {
   data: AppData | null;
-  /** Met à jour partiellement le document, avec écriture Firestore debouncée. */
   update: (patch: Partial<AppData>) => void;
   pendingWrites: boolean;
 }
 
 const SAVE_DEBOUNCE_MS = 400;
 
-/**
- * Gère le cycle de vie complet du document `users/{uid}/app/data` :
- *  - abonnement temps réel (onSnapshot)
- *  - création du document s'il n'existe pas
- *  - migration des anciennes formes de données
- *  - archivage automatique des jours > 400 jours vers `users/{uid}/archive/{YYYY-MM}`
- *  - écritures groupées et différées (debounce) pour limiter les coûts Firestore
- *
- * Toute cette logique vivait dans le composant App de la v1 ; l'isoler ici rend
- * App.tsx lisible et cette mécanique testable séparément.
- */
+function localKey(uid: string) { return `appdata_${uid}`; }
+
+function loadLocal(uid: string): AppData | null {
+  try {
+    const raw = localStorage.getItem(localKey(uid));
+    if (!raw) return null;
+    return migrateData({ ...defaultAppData(), ...JSON.parse(raw) });
+  } catch { return null; }
+}
+
+function saveLocal(uid: string, data: AppData) {
+  try { localStorage.setItem(localKey(uid), JSON.stringify(data)); } catch {}
+}
+
 export function useAppData(uid: string | null): UseAppDataResult {
   const [data, setData] = useState<AppData | null>(null);
   const [pendingWrites, setPendingWrites] = useState(false);
@@ -41,61 +43,63 @@ export function useAppData(uid: string | null): UseAppDataResult {
       setData(null);
       return;
     }
+
+    // Charge le cache local immédiatement pour ne pas bloquer l'UI
+    const cached = loadLocal(uid);
+    if (cached) setData(cached);
+
     const today = dateKey();
     const ref = doc(db, 'users', uid, 'app', 'data');
     docRef.current = ref;
 
     const unsub = onSnapshot(
-  ref,
-  { includeMetadataChanges: true },
-  (snap) => {
-    setPendingWrites(snap.metadata.hasPendingWrites);
+      ref,
+      { includeMetadataChanges: true },
+      (snap) => {
+        setPendingWrites(snap.metadata.hasPendingWrites);
 
-    const base = snap.exists()
-      ? migrateData({ ...defaultAppData(), ...(snap.data() as Partial<AppData>) })
-      : migrateData({ ...defaultAppData() });
+        const base = snap.exists()
+          ? migrateData({ ...defaultAppData(), ...(snap.data() as Partial<AppData>) })
+          : migrateData({ ...defaultAppData() });
 
-    // Première initialisation : crée le document.
-    if (!snap.exists() && snap.metadata.fromCache === false) {
-      console.log("Création du document Firestore (première initialisation)");
-      void setDoc(ref, defaultAppData());
-    }
+        if (!snap.exists() && snap.metadata.fromCache === false) {
+          console.log("Création du document Firestore (première initialisation)");
+          void setDoc(ref, defaultAppData());
+        }
 
-    // Archivage des jours trop anciens.
-    const { kept, removed, changed } = pruneOldDays(base.days, today);
-    if (changed) {
-      const next: AppData = { ...base, days: kept };
-      setData(next);
+        const { kept, removed, changed } = pruneOldDays(base.days, today);
+        if (changed) {
+          const next: AppData = { ...base, days: kept };
+          setData(next);
+          saveLocal(uid, next);
 
-      const byMonth: Record<string, Record<string, unknown>> = {};
-      Object.keys(removed).forEach((k) => {
-        const m = k.slice(0, 7);
-        (byMonth[m] = byMonth[m] || {})[k] = removed[k];
-      });
-      if (db) {
-        Object.entries(byMonth).forEach(([m, obj]) => {
-          void setDoc(doc(db!, 'users', uid, 'archive', m), obj, { merge: true }).catch((e) =>
-            console.warn('Archivage', m, e)
-          );
-        });
+          const byMonth: Record<string, Record<string, unknown>> = {};
+          Object.keys(removed).forEach((k) => {
+            const m = k.slice(0, 7);
+            (byMonth[m] = byMonth[m] || {})[k] = removed[k];
+          });
+          if (db) {
+            Object.entries(byMonth).forEach(([m, obj]) => {
+              void setDoc(doc(db!, 'users', uid, 'archive', m), obj, { merge: true }).catch((e) =>
+                console.warn('Archivage', m, e)
+              );
+            });
+          }
+
+          if (saveTimer.current) clearTimeout(saveTimer.current);
+          saveTimer.current = setTimeout(() => {
+            void setDoc(ref, next, { merge: true });
+          }, SAVE_DEBOUNCE_MS);
+        } else {
+          setData(base);
+          saveLocal(uid, base);
+        }
+      },
+      (err) => {
+        console.warn('Firestore snapshot error (hors-ligne) :', err.code);
+        if (data === null) setData(defaultAppData());
       }
-
-      if (saveTimer.current) clearTimeout(saveTimer.current);
-      saveTimer.current = setTimeout(() => {
-        void setDoc(ref, next, { merge: true });
-      }, SAVE_DEBOUNCE_MS);
-    } else {
-      setData(base);
-    }
-  },
-  (err) => {
-    // Offline ou erreur réseau : on charge les données par défaut si rien en cache
-    console.warn('Firestore snapshot error (probablement hors-ligne) :', err.code);
-    if (data === null) setData(defaultAppData());
-
-  }
-);
-
+    );
 
     return () => {
       unsub();
@@ -107,6 +111,7 @@ export function useAppData(uid: string | null): UseAppDataResult {
     setData((prev) => {
       if (!prev) return prev;
       const next = { ...prev, ...patch };
+      if (uid) saveLocal(uid, next);
       if (docRef.current) {
         if (saveTimer.current) clearTimeout(saveTimer.current);
         const ref = docRef.current;
@@ -116,7 +121,7 @@ export function useAppData(uid: string | null): UseAppDataResult {
       }
       return next;
     });
-  }, []);
+  }, [uid]);
 
   return { data, update, pendingWrites };
 }

@@ -91,7 +91,8 @@ export function useAppData(uid: string | null): UseAppDataResult {
   (err) => {
     // Offline ou erreur réseau : on charge les données par défaut si rien en cache
     console.warn('Firestore snapshot error (probablement hors-ligne) :', err.code);
-    if (data === null) setData(migrateData(defaultAppData()));
+    if (data === null) setData(defaultAppData());
+
   }
 );
 

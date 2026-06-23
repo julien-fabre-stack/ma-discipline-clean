@@ -174,7 +174,8 @@ export function Runner({ steps, startIdx = 0, data, onClose, onProgress, onDone 
         </div>
       )}
 
-      <div className="relative z-10 flex items-center justify-between px-5 pt-5 pb-2">
+      <div className="relative z-10 flex items-center justify-between px-5 pb-2" style={{ paddingTop: 'max(20px, env(safe-area-inset-top))' }}>
+
         <button onClick={onClose} className="p-2 rounded-full" style={{ background: hexA(C.surf, 0.8) }}>
           <Icon name="x" size={20} color={C.dim} />
         </button>

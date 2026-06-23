@@ -45,48 +45,56 @@ export function useAppData(uid: string | null): UseAppDataResult {
     const ref = doc(db, 'users', uid, 'app', 'data');
     docRef.current = ref;
 
-    const unsub = onSnapshot(ref, (snap) => {
-      setPendingWrites(snap.metadata.hasPendingWrites);
+    const unsub = onSnapshot(
+  ref,
+  { includeMetadataChanges: true },
+  (snap) => {
+    setPendingWrites(snap.metadata.hasPendingWrites);
 
-      const base = snap.exists()
-        ? migrateData({ ...defaultAppData(), ...(snap.data() as Partial<AppData>) })
-        : migrateData({ ...defaultAppData() });
+    const base = snap.exists()
+      ? migrateData({ ...defaultAppData(), ...(snap.data() as Partial<AppData>) })
+      : migrateData({ ...defaultAppData() });
 
-      // Première initialisation : crée le document.
-  if (!snap.exists() && snap.metadata.fromCache === false) {
-  console.log("Création du document Firestore (première initialisation)");
-  void setDoc(ref, defaultAppData());
-}
+    // Première initialisation : crée le document.
+    if (!snap.exists() && snap.metadata.fromCache === false) {
+      console.log("Création du document Firestore (première initialisation)");
+      void setDoc(ref, defaultAppData());
+    }
 
+    // Archivage des jours trop anciens.
+    const { kept, removed, changed } = pruneOldDays(base.days, today);
+    if (changed) {
+      const next: AppData = { ...base, days: kept };
+      setData(next);
 
-      // Archivage des jours trop anciens.
-      const { kept, removed, changed } = pruneOldDays(base.days, today);
-      if (changed) {
-        const next: AppData = { ...base, days: kept };
-        setData(next);
-
-        // Regroupe les jours retirés par mois et les archive.
-        const byMonth: Record<string, Record<string, unknown>> = {};
-        Object.keys(removed).forEach((k) => {
-          const m = k.slice(0, 7);
-          (byMonth[m] = byMonth[m] || {})[k] = removed[k];
+      const byMonth: Record<string, Record<string, unknown>> = {};
+      Object.keys(removed).forEach((k) => {
+        const m = k.slice(0, 7);
+        (byMonth[m] = byMonth[m] || {})[k] = removed[k];
+      });
+      if (db) {
+        Object.entries(byMonth).forEach(([m, obj]) => {
+          void setDoc(doc(db!, 'users', uid, 'archive', m), obj, { merge: true }).catch((e) =>
+            console.warn('Archivage', m, e)
+          );
         });
-        if (db) {
-          Object.entries(byMonth).forEach(([m, obj]) => {
-            void setDoc(doc(db!, 'users', uid, 'archive', m), obj, { merge: true }).catch((e) =>
-              console.warn('Archivage', m, e)
-            );
-          });
-        }
-
-        if (saveTimer.current) clearTimeout(saveTimer.current);
-        saveTimer.current = setTimeout(() => {
-          void setDoc(ref, next, { merge: true });
-        }, SAVE_DEBOUNCE_MS);
-      } else {
-        setData(base);
       }
-    });
+
+      if (saveTimer.current) clearTimeout(saveTimer.current);
+      saveTimer.current = setTimeout(() => {
+        void setDoc(ref, next, { merge: true });
+      }, SAVE_DEBOUNCE_MS);
+    } else {
+      setData(base);
+    }
+  },
+  (err) => {
+    // Offline ou erreur réseau : on charge les données par défaut si rien en cache
+    console.warn('Firestore snapshot error (probablement hors-ligne) :', err.code);
+    if (data === null) setData(migrateData(defaultAppData()));
+  }
+);
+
 
     return () => {
       unsub();

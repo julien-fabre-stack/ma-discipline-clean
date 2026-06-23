@@ -4,8 +4,8 @@ const dec = new TextDecoder();
 const PBKDF2_ITERATIONS = 150_000;
 const VERIFIER_PLAIN = 'ma-discipline-journal-ok';
 
-function saltFor(uid: string): Uint8Array {
-  return enc.encode('mad-journal-v1::' + uid);
+function saltFor(uid: string): ArrayBuffer {
+  return enc.encode('mad-journal-v1::' + uid).buffer as ArrayBuffer;
 }
 
 export interface CipherPayload {
@@ -20,17 +20,17 @@ function bufToB64(buf: ArrayBuffer): string {
   return btoa(bin);
 }
 
-function b64ToBuf(b64: string): Uint8Array {
+function b64ToBuf(b64: string): ArrayBuffer {
   const bin = atob(b64);
   const bytes = new Uint8Array(bin.length);
   for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
-  return bytes;
+  return bytes.buffer as ArrayBuffer;
 }
 
 export async function deriveKey(pin: string, uid: string): Promise<CryptoKey> {
   const baseKey = await crypto.subtle.importKey(
     'raw',
-    enc.encode(pin),
+    enc.encode(pin).buffer as ArrayBuffer,
     'PBKDF2',
     false,
     ['deriveKey']
@@ -55,7 +55,7 @@ export async function encryptText(key: CryptoKey, plain: string): Promise<Cipher
   const ct = await crypto.subtle.encrypt(
     { name: 'AES-GCM', iv: ivArray },
     key,
-    enc.encode(plain)
+    enc.encode(plain).buffer as ArrayBuffer
   );
   return { iv: bufToB64(ivBuffer), ct: bufToB64(ct) };
 }
@@ -66,7 +66,7 @@ export async function decryptText(key: CryptoKey, payload: CipherPayload): Promi
   const plain = await crypto.subtle.decrypt(
     { name: 'AES-GCM', iv },
     key,
-    ct.buffer as ArrayBuffer
+    ct
   );
   return dec.decode(plain);
 }

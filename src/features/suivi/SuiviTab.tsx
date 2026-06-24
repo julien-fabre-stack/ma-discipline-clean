@@ -13,13 +13,12 @@ export interface SuiviTabProps {
   update: (patch: Partial<AppData>) => void;
   today: string;
   openSettings: () => void;
-  openJournalDay: (day: string) => void;
 }
 
 const ROWH = 38;
 const LANEW = 7;
 
-export function SuiviTab({ data, update, today, openSettings, openJournalDay }: SuiviTabProps) {
+export function SuiviTab({ data, update, today, openSettings }: SuiviTabProps) {
   const { C, dawn, glowShadow } = useTheme();
   const dfStart = (data.drinkfree && data.drinkfree.start) || today;
   const drinkCount = Math.max(0, daysBetween(dfStart, today));
@@ -137,14 +136,6 @@ export function SuiviTab({ data, update, today, openSettings, openJournalDay }: 
             <Icon name="calendar" size={13} /> Aujourd'hui
           </button>
         </div>
-
-        <button
-          onClick={() => openJournalDay(selectedDay)}
-          className="flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1.5 rounded-full mb-2"
-          style={{ background: C.surf, color: C.gold, border: `1px solid ${C.line}` }}
-        >
-          <Icon name="edit" size={13} /> Journal du jour
-        </button>
 
         <div className="flex items-center gap-2 mb-1 overflow-x-auto" style={{ scrollbarWidth: 'none' }}>
           <span className="text-[9px] tracking-widest uppercase flex-shrink-0" style={{ color: C.dim, width: 50 }}>
@@ -290,3 +281,4 @@ export function SuiviTab({ data, update, today, openSettings, openJournalDay }: 
     </div>
   );
 }
+

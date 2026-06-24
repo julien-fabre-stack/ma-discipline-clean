@@ -43,7 +43,8 @@ function AuthedApp({
  pendingWrites: boolean;
  onLogout: () => void;
 }) {
- const { C, dawn, hexA, glowShadow } = useTheme();
+ const { C, dawn, hexA, glowShadow, tabTransition } = useTheme();
+ const tabClass = `tab-enter tab-${tabTransition}`;
  const [tab, setTab] = useState<TabKey>('seance');
  const [runner, setRunner] = useState<{ wid: string; idx: number } | null>(null);
  const [wod, setWod] = useState<Wod | null>(null);
@@ -85,7 +86,7 @@ function AuthedApp({
        background: C.night,
        color: C.text,
        minHeight: '100vh',
-       fontFamily: 'system-ui,-apple-system,sans-serif',
+       fontFamily: 'var(--font-app)',
        paddingTop: 'env(safe-area-inset-top)',
      }}
    >
@@ -109,7 +110,7 @@ function AuthedApp({
      )}
 
      {tab === 'seance' && (
-       <div key="seance" className="tab-enter">
+       <div key="seance" className={tabClass}>
          <SeanceTab
            data={data}
            markSport={markSport}
@@ -121,7 +122,7 @@ function AuthedApp({
      )}
 
      {tab === 'nutrition' && (
-       <div key="nutrition" className="tab-enter">
+       <div key="nutrition" className={tabClass}>
          <NutritionTab
            data={data}
            update={update}
@@ -132,7 +133,7 @@ function AuthedApp({
      )}
 
      {tab === 'suivi' && (
-       <div key="suivi" className="tab-enter">
+       <div key="suivi" className={tabClass}>
          <SuiviTab
            data={data}
            update={update}
@@ -144,7 +145,7 @@ function AuthedApp({
      )}
 
      {tab === 'journal' && (
-       <div key="journal" className="tab-enter">
+       <div key="journal" className={tabClass}>
          <JournalTab
            update={update}
            uid={uid}
@@ -246,9 +247,17 @@ export function App() {
 
  const themeId = appData.data?.theme || 'aube';
  const accent = appData.data?.accent || null;
+ const appearance = {
+   customColors: appData.data?.customColors ?? null,
+   fontFamily: appData.data?.fontFamily,
+   fontScale: appData.data?.fontScale,
+   tabTransition: appData.data?.tabTransition,
+   animSpeed: appData.data?.animSpeed,
+   buttonAnim: appData.data?.buttonAnim,
+ };
 
  return (
-   <ThemeProvider themeId={themeId} accent={accent}>
+   <ThemeProvider themeId={themeId} accent={accent} appearance={appearance}>
      <ConfirmProvider>
        <AppGate
          authReady={authReady}

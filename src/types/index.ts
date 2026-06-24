@@ -164,7 +164,19 @@ export interface Profile {
 
 // ===== Thème / apparence =====
 
-export type ThemeId = 'aube' | 'nuit' | 'ardoise' | 'aurore' | 'foret';
+export type ThemeId = 'aube' | 'nuit' | 'ardoise' | 'aurore' | 'foret' | 'paper' | 'custom';
+
+/** Couleurs de base d'un thème personnalisé. Le reste de la palette en dérive. */
+export interface CustomColors {
+  night: string;
+  ember: string;
+  gold: string;
+}
+
+export type FontFamilyId = 'system' | 'rounded' | 'serif' | 'mono';
+export type FontScaleId = 'compact' | 'normal' | 'large';
+export type TabTransitionId = 'slide' | 'fade' | 'scale' | 'none';
+export type AnimSpeedId = 'fast' | 'normal' | 'slow' | 'off';
 
 // ===== Chiffrement journal =====
 
@@ -202,6 +214,16 @@ export interface AppData {
   navAlpha?: number;
   runnerTextColor?: string;
   runnerFinishMsg?: string;
+
+  /** Couleurs du thème personnalisé (utilisées quand theme === 'custom'). */
+  customColors?: CustomColors;
+  /** Typographie. */
+  fontFamily?: FontFamilyId;
+  fontScale?: FontScaleId;
+  /** Animations. */
+  tabTransition?: TabTransitionId;
+  animSpeed?: AnimSpeedId;
+  buttonAnim?: boolean;
 }
 
 // ===== Runner =====

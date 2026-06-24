@@ -8,6 +8,13 @@ export interface ThemePalette {
   line: string;
   ember: string;
   gold: string;
+  /** Surcharges optionnelles : permettent un thème clair (texte sombre). */
+  text?: string;
+  dim?: string;
+  /** Couleur du texte posé sur un fond accent (boutons). Défaut sombre. */
+  onAccent?: string;
+  /** Indique un thème clair (ajuste ombres, opacités, etc. si besoin). */
+  light?: boolean;
 }
 
 /**
@@ -60,6 +67,63 @@ export const THEMES: Record<ThemeId, ThemePalette> = {
     ember: '#4ADE80',
     gold: '#A3E635',
   },
+  paper: {
+    name: 'Cahier',
+    night: '#F2EFE9',
+    surf: '#FAFAF7',
+    surf2: '#EDEBE4',
+    line: '#D6D0C4',
+    ember: '#B85C4A',
+    gold: '#C2785B',
+    text: '#2C2820',
+    dim: '#9C9488',
+    onAccent: '#FFFFFF',
+    light: true,
+  },
+  custom: {
+    name: 'Perso',
+    night: '#15121C',
+    surf: '#1E1A28',
+    surf2: '#2A2438',
+    line: 'rgba(255,255,255,0.08)',
+    ember: '#FF7A45',
+    gold: '#FFC24B',
+  },
+};
+
+/** Valeurs par défaut proposées pour le thème personnalisé. */
+export const DEFAULT_CUSTOM_COLORS: { night: string; ember: string; gold: string } = {
+  night: '#15121C',
+  ember: '#FF7A45',
+  gold: '#FFC24B',
+};
+
+/** Maps typographie / animations exposées au reste de l'app. */
+export const FONT_FAMILIES: Record<string, { name: string; stack: string }> = {
+  system: { name: 'Système', stack: "system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif" },
+  rounded: { name: 'Arrondie', stack: "ui-rounded, 'SF Pro Rounded', system-ui, sans-serif" },
+  serif: { name: 'Serif', stack: "Georgia, 'Times New Roman', serif" },
+  mono: { name: 'Mono', stack: "ui-monospace, 'SF Mono', 'Cascadia Code', monospace" },
+};
+
+export const FONT_SCALES: Record<string, { name: string; value: number }> = {
+  compact: { name: 'Compact', value: 0.92 },
+  normal: { name: 'Normal', value: 1 },
+  large: { name: 'Large', value: 1.1 },
+};
+
+export const ANIM_SPEEDS: Record<string, { name: string; mult: number }> = {
+  fast: { name: 'Rapide', mult: 0.6 },
+  normal: { name: 'Normale', mult: 1 },
+  slow: { name: 'Lente', mult: 1.5 },
+  off: { name: 'Aucune', mult: 0 },
+};
+
+export const TAB_TRANSITIONS: Record<string, string> = {
+  slide: 'Glissement',
+  fade: 'Fondu',
+  scale: 'Zoom',
+  none: 'Aucune',
 };
 
 export const SEMANTIC_COLORS = {
@@ -94,4 +158,22 @@ export function hexA(hex: string, a: number): string {
   } catch {
     return hex;
   }
+}
+
+/**
+ * Construit une palette complète à partir des 3 couleurs de base d'un thème
+ * personnalisé. `surf` et `surf2` sont des éclaircissements progressifs de
+ * `night`, ce qui garantit une hiérarchie de surfaces cohérente quelle que
+ * soit la couleur de fond choisie.
+ */
+export function buildCustomPalette(c: { night: string; ember: string; gold: string }): ThemePalette {
+  return {
+    name: 'Perso',
+    night: c.night,
+    surf: lighten(c.night, 0.06),
+    surf2: lighten(c.night, 0.12),
+    line: 'rgba(255,255,255,0.09)',
+    ember: c.ember,
+    gold: c.gold,
+  };
 }

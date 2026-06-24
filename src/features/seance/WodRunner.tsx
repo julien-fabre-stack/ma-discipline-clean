@@ -101,7 +101,7 @@ export function WodRunner({ wod, onClose, onDone }: WodRunnerProps) {
 
   return (
     <div className="fixed inset-0 z-50 flex flex-col" style={{ background: C.night, color: C.text }}>
-      <div className="flex items-center justify-between px-5 pt-5 pb-2">
+      <div className="flex items-center justify-between px-5 pb-2" style={{ paddingTop: 'max(20px, env(safe-area-inset-top))' }}>
         <button onClick={onClose} className="p-2 rounded-full" style={{ background: C.surf }}>
           <Icon name="x" size={20} color={C.dim} />
         </button>

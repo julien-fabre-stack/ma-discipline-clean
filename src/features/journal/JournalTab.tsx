@@ -1,13 +1,24 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { AppData } from '@/types';
 import { addDays, parseKey } from '@/lib/utils';
-import { useTheme } from '@/shared/theme/ThemeProvider';
 import { Icon, useConfirm } from '@/shared/ui';
 import { useJournal } from '@/lib/useJournal';
 import { exportMonthPdf, type JournalExportEntry } from '@/lib/journalPdf';
 import { useJournalSession } from './JournalSession';
 import { JournalLock } from './JournalLock';
 import { JournalEntry } from './JournalEntry';
+
+// Palette cahier — indépendante du thème de l'app
+const J = {
+  bg: '#F2EFE9',
+  card: '#FAFAF7',
+  border: '#D6D0C4',
+  dateCol: '#EDEBE4',
+  text: '#2C2820',
+  dim: '#9C9488',
+  accent: '#B85C4A',
+  serif: "Georgia, 'Times New Roman', serif",
+};
 
 export interface JournalTabProps {
   update: (patch: Partial<AppData>) => void;
@@ -30,7 +41,6 @@ export function JournalTab({
   initialDay,
   onConsumeInitialDay,
 }: JournalTabProps) {
-  const { C, dawn, glowShadow } = useTheme();
   const askConfirm = useConfirm();
   const { unlocked, encrypt, decrypt, lock } = useJournalSession();
   const { entries, loading, saveEntry, deleteEntry } = useJournal(unlocked ? uid : null);
@@ -99,10 +109,7 @@ export function JournalTab({
     const month = today.slice(0, 7);
     const monthKeys = Object.keys(entries).filter((k) => k.startsWith(month));
     if (monthKeys.length === 0) {
-      await askConfirm({
-        title: 'Aucune entrée',
-        message: `Aucune entrée pour ${month} à exporter.`,
-      });
+      await askConfirm({ title: 'Aucune entrée', message: `Aucune entrée pour ${month} à exporter.` });
       return;
     }
     const ok = await askConfirm({
@@ -129,9 +136,14 @@ export function JournalTab({
     return (
       <div
         className="flex flex-col"
-        style={{ height: 'calc(100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 64px)' }}
+        style={{
+          height: 'calc(100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 64px)',
+          background: J.bg,
+          fontFamily: J.serif,
+          color: J.text,
+        }}
       >
-        <Header C={C} onSettings={openSettings} onExport={null} onLock={null} exporting={false} />
+        <JournalHeader onSettings={openSettings} onExport={null} onLock={null} exporting={false} />
         <JournalLock
           uid={uid}
           onPinCreated={(verifier) => update({ journalMeta: { verifier } })}
@@ -155,25 +167,41 @@ export function JournalTab({
   return (
     <div
       className="flex flex-col"
-      style={{ height: 'calc(100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 64px)' }}
+      style={{
+        height: 'calc(100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 64px)',
+        background: J.bg,
+        fontFamily: J.serif,
+        color: J.text,
+      }}
     >
-      <Header C={C} onSettings={openSettings} onExport={doExport} onLock={lock} exporting={exporting} />
+      <JournalHeader onSettings={openSettings} onExport={doExport} onLock={lock} exporting={exporting} />
 
-      <div className="flex-1 overflow-y-auto px-4 pb-6">
-        <button
-          onClick={() => setEditDay(today)}
-          className="w-full py-3 rounded-xl font-semibold text-sm mb-4 flex items-center justify-center gap-2"
-          style={{ background: dawn, color: '#1A1206', boxShadow: glowShadow() }}
-        >
-          <Icon name="plus" size={16} /> Entrée du jour
-        </button>
+      <div className="flex-1 overflow-y-auto pb-6">
+        {/* Bouton nouvelle entrée */}
+        <div className="px-4 pt-2 pb-3">
+          <button
+            onClick={() => setEditDay(today)}
+            className="w-full py-3 text-sm font-semibold flex items-center justify-center gap-2"
+            style={{
+              background: J.card,
+              border: `1px solid ${J.border}`,
+              color: J.accent,
+              fontFamily: J.serif,
+              borderRadius: 2,
+            }}
+          >
+            <Icon name="plus" size={15} color={J.accent} />
+            Écrire aujourd'hui
+          </button>
+        </div>
 
         {loading && (
-          <div className="text-center py-8 text-sm" style={{ color: C.dim }}>
+          <div className="text-center py-8 text-sm" style={{ color: J.dim, fontFamily: J.serif }}>
             Chargement…
           </div>
         )}
 
+        {/* Liste des jours */}
         {listDays.map((k) => {
           const entry = entries[k];
           const d = parseKey(k);
@@ -182,18 +210,34 @@ export function JournalTab({
           const preview = previews[k];
 
           if (!entry) {
+            if (!isToday) return null; // n'affiche pas les jours vides sauf aujourd'hui
             return (
               <button
                 key={k}
                 onClick={() => setEditDay(k)}
-                className="w-full flex items-center gap-3 px-2 py-2 text-left opacity-60"
+                className="w-full flex items-stretch text-left"
+                style={{
+                  borderTop: `1px solid ${J.border}`,
+                  borderBottom: `1px solid ${J.border}`,
+                  marginBottom: -1,
+                }}
               >
-                <span className="text-[11px] tabular-nums" style={{ color: C.dim, width: 56 }}>
-                  {d.getDate()} {weekday}.
-                </span>
-                <span className="text-xs" style={{ color: C.dim }}>
-                  {isToday ? "Écrire aujourd'hui…" : '—'}
-                </span>
+                <div
+                  className="flex flex-col items-center justify-center flex-shrink-0 py-4"
+                  style={{ width: 72, background: J.dateCol, borderRight: `1px solid ${J.border}` }}
+                >
+                  <span className="text-2xl font-bold tabular-nums" style={{ fontFamily: J.serif, color: J.text }}>
+                    {d.getDate()}
+                  </span>
+                  <span className="text-[11px] mt-0.5" style={{ color: J.dim }}>
+                    {weekday}.
+                  </span>
+                </div>
+                <div className="flex-1 px-4 py-4 flex items-center">
+                  <span className="text-sm italic" style={{ color: J.dim }}>
+                    Écrire aujourd'hui…
+                  </span>
+                </div>
               </button>
             );
           }
@@ -202,20 +246,27 @@ export function JournalTab({
             <button
               key={k}
               onClick={() => setEditDay(k)}
-              className="w-full flex items-stretch gap-3 mb-2 rounded-xl overflow-hidden text-left"
-              style={{ background: C.surf, border: `1px solid ${C.line}` }}
+              className="w-full flex items-stretch text-left"
+              style={{
+                borderTop: `1px solid ${J.border}`,
+                borderBottom: `1px solid ${J.border}`,
+                marginBottom: -1,
+                background: J.card,
+              }}
             >
               <div
-                className="flex flex-col items-center justify-center flex-shrink-0 px-3 py-3"
-                style={{ background: C.surf2, minWidth: 58 }}
+                className="flex flex-col items-center justify-center flex-shrink-0 py-4"
+                style={{ width: 72, background: J.dateCol, borderRight: `1px solid ${J.border}` }}
               >
-                <span className="text-lg font-bold tabular-nums">{d.getDate()}</span>
-                <span className="text-[10px]" style={{ color: C.dim }}>
+                <span className="text-2xl font-bold tabular-nums" style={{ fontFamily: J.serif, color: J.text }}>
+                  {d.getDate()}
+                </span>
+                <span className="text-[11px] mt-0.5" style={{ color: J.dim }}>
                   {weekday}.
                 </span>
               </div>
-              <div className="flex-1 min-w-0 py-3 pr-3 flex items-center">
-                <span className="text-sm line-clamp-2" style={{ color: C.text }}>
+              <div className="flex-1 px-4 py-4 flex items-center">
+                <span className="text-sm line-clamp-2" style={{ color: J.text, fontFamily: J.serif, lineHeight: 1.55 }}>
                   {preview ? preview.title || '(sans titre)' : '…'}
                 </span>
               </div>
@@ -227,14 +278,12 @@ export function JournalTab({
   );
 }
 
-function Header({
-  C,
+function JournalHeader({
   onSettings,
   onExport,
   onLock,
   exporting,
 }: {
-  C: ReturnType<typeof useTheme>['C'];
   onSettings: () => void;
   onExport: (() => void) | null;
   onLock: (() => void) | null;
@@ -242,28 +291,37 @@ function Header({
 }) {
   return (
     <div
-      className="flex-shrink-0 px-5 pb-3 flex items-start justify-between"
-      style={{ paddingTop: 'calc(env(safe-area-inset-top) + 20px)' }}
+      className="flex-shrink-0 px-5 pb-3 flex items-end justify-between"
+      style={{
+        paddingTop: 'calc(env(safe-area-inset-top) + 20px)',
+        borderBottom: `1px solid ${J.border}`,
+        background: J.bg,
+      }}
     >
-      <h1 className="text-2xl font-extrabold tracking-tight">Journal</h1>
-      <div className="flex items-center gap-2">
+      <h1
+        className="text-3xl font-bold tracking-tight"
+        style={{ fontFamily: J.serif, color: J.text, letterSpacing: '-0.01em' }}
+      >
+        Journal
+      </h1>
+      <div className="flex items-center gap-1 pb-1">
         {onExport && (
           <button
             onClick={onExport}
             disabled={exporting}
             className="p-2 rounded-full"
-            style={{ background: C.surf, opacity: exporting ? 0.5 : 1 }}
+            style={{ background: J.dateCol, opacity: exporting ? 0.5 : 1 }}
           >
-            <Icon name="download" size={18} color={C.dim} />
+            <Icon name="download" size={17} color={J.dim} />
           </button>
         )}
         {onLock && (
-          <button onClick={onLock} className="p-2 rounded-full" style={{ background: C.surf }}>
-            <Icon name="logout" size={18} color={C.dim} />
+          <button onClick={onLock} className="p-2 rounded-full" style={{ background: J.dateCol }}>
+            <Icon name="logout" size={17} color={J.dim} />
           </button>
         )}
-        <button onClick={onSettings} className="p-2 rounded-full" style={{ background: C.surf }}>
-          <Icon name="gear" size={18} color={C.dim} />
+        <button onClick={onSettings} className="p-2 rounded-full" style={{ background: J.dateCol }}>
+          <Icon name="gear" size={17} color={J.dim} />
         </button>
       </div>
     </div>

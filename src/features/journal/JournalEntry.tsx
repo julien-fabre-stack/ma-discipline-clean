@@ -1,9 +1,18 @@
 import { useEffect, useState } from 'react';
 import { parseKey } from '@/lib/utils';
-import { useTheme } from '@/shared/theme/ThemeProvider';
 import { Icon, useConfirm } from '@/shared/ui';
 import { useJournalSession } from './JournalSession';
 import type { JournalDoc } from '@/lib/useJournal';
+
+const J = {
+  bg: '#F2EFE9',
+  card: '#FAFAF7',
+  border: '#D6D0C4',
+  text: '#2C2820',
+  dim: '#9C9488',
+  accent: '#B85C4A',
+  serif: "Georgia, 'Times New Roman', serif",
+};
 
 export interface JournalEntryProps {
   dayKey: string;
@@ -14,7 +23,6 @@ export interface JournalEntryProps {
 }
 
 export function JournalEntry({ dayKey, doc, onSave, onDelete, onBack }: JournalEntryProps) {
-  const { C, dawn, glowShadow } = useTheme();
   const { decrypt } = useJournalSession();
   const askConfirm = useConfirm();
 
@@ -34,21 +42,17 @@ export function JournalEntry({ dayKey, doc, onSave, onDelete, onBack }: JournalE
         setTitle(t);
         setBody(b);
       } catch {
-        if (alive) {
-          setTitle('');
-          setBody('');
-        }
+        if (alive) { setTitle(''); setBody(''); }
       } finally {
         if (alive) setLoaded(true);
       }
     })();
-    return () => {
-      alive = false;
-    };
+    return () => { alive = false; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dayKey]);
 
-  const dateLabel = parseKey(dayKey).toLocaleDateString('fr-FR', {
+  const d = parseKey(dayKey);
+  const dateLabel = d.toLocaleDateString('fr-FR', {
     weekday: 'long',
     day: 'numeric',
     month: 'long',
@@ -69,7 +73,7 @@ export function JournalEntry({ dayKey, doc, onSave, onDelete, onBack }: JournalE
 
   const remove = async () => {
     const ok = await askConfirm({
-      title: 'Supprimer l\'entrée',
+      title: "Supprimer l'entrée",
       message: 'Supprimer définitivement cette entrée du journal ?',
     });
     if (!ok) return;
@@ -91,64 +95,108 @@ export function JournalEntry({ dayKey, doc, onSave, onDelete, onBack }: JournalE
   return (
     <div
       className="fixed inset-0 z-50 flex flex-col"
-      style={{ background: C.night, color: C.text }}
+      style={{ background: J.bg, color: J.text, fontFamily: J.serif }}
     >
+      {/* Header */}
       <div
-        className="flex items-center gap-2 px-4 pb-3"
+        className="flex-shrink-0 flex items-center gap-3 px-4 pb-3"
         style={{
-          borderBottom: `1px solid ${C.line}`,
           paddingTop: 'calc(env(safe-area-inset-top) + 16px)',
+          borderBottom: `1px solid ${J.border}`,
+          background: J.bg,
         }}
       >
-        <button onClick={back} className="p-2 rounded-full flex-shrink-0" style={{ background: C.surf }}>
-          <Icon name="left" size={20} color={C.gold} />
+        <button
+          onClick={back}
+          className="p-2 rounded-full flex-shrink-0"
+          style={{ background: J.card, border: `1px solid ${J.border}` }}
+        >
+          <Icon name="left" size={18} color={J.dim} />
         </button>
+
         <div className="flex-1 min-w-0">
-          <div className="font-bold capitalize truncate" style={{ fontSize: 15 }}>
+          <div
+            className="text-sm capitalize truncate"
+            style={{ color: J.dim, fontFamily: J.serif, fontStyle: 'italic' }}
+          >
             {dateLabel}
           </div>
         </div>
+
         {doc && (
-          <button onClick={remove} className="p-2 rounded-full flex-shrink-0" style={{ background: C.surf }}>
-            <Icon name="trash" size={18} color={C.dim} />
+          <button
+            onClick={remove}
+            className="p-2 rounded-full flex-shrink-0"
+            style={{ background: J.card, border: `1px solid ${J.border}` }}
+          >
+            <Icon name="trash" size={17} color={J.dim} />
           </button>
         )}
+
         <button
           onClick={save}
           disabled={saving}
-          className="px-4 py-2 rounded-full text-sm font-semibold flex-shrink-0"
-          style={{ background: dawn, color: '#1A1206', boxShadow: glowShadow(), opacity: saving ? 0.6 : 1 }}
+          className="px-4 py-2 text-sm font-semibold flex-shrink-0"
+          style={{
+            background: J.accent,
+            color: '#FFF',
+            borderRadius: 2,
+            fontFamily: J.serif,
+            opacity: saving ? 0.6 : 1,
+          }}
         >
           {saving ? '…' : 'Enregistrer'}
         </button>
       </div>
 
       {!loaded ? (
-        <div className="flex-1 flex items-center justify-center" style={{ color: C.dim }}>
+        <div className="flex-1 flex items-center justify-center" style={{ color: J.dim }}>
           Déchiffrement…
         </div>
       ) : (
-        <div className="flex-1 overflow-y-auto px-5 pt-4 pb-8 flex flex-col">
-          <input
-            value={title}
-            onChange={(e) => {
-              setTitle(e.target.value);
-              setDirty(true);
-            }}
-            placeholder="Titre"
-            className="w-full bg-transparent outline-none mb-3"
-            style={{ color: C.text, fontSize: 22, fontWeight: 700 }}
-          />
-          <textarea
-            value={body}
-            onChange={(e) => {
-              setBody(e.target.value);
-              setDirty(true);
-            }}
-            placeholder="Écrivez plus ici…"
-            className="w-full flex-1 bg-transparent outline-none resize-none"
-            style={{ color: C.text, fontSize: 16, lineHeight: 1.6, minHeight: 300 }}
-          />
+        <div className="flex-1 overflow-y-auto flex flex-col" style={{ background: J.card }}>
+          {/* Numéro du jour en grand */}
+          <div
+            className="flex-shrink-0 px-6 pt-6 pb-2"
+            style={{ borderBottom: `1px solid ${J.border}` }}
+          >
+            <div
+              className="text-6xl font-bold tabular-nums leading-none"
+              style={{ color: J.text, fontFamily: J.serif }}
+            >
+              {d.getDate()}
+            </div>
+          </div>
+
+          <div className="flex-1 px-6 pt-4 pb-10 flex flex-col">
+            <input
+              value={title}
+              onChange={(e) => { setTitle(e.target.value); setDirty(true); }}
+              placeholder="Titre"
+              className="w-full bg-transparent outline-none mb-4"
+              style={{
+                color: J.text,
+                fontFamily: J.serif,
+                fontSize: 20,
+                fontWeight: 700,
+                borderBottom: `1px solid ${J.border}`,
+                paddingBottom: 8,
+              }}
+            />
+            <textarea
+              value={body}
+              onChange={(e) => { setBody(e.target.value); setDirty(true); }}
+              placeholder="Écris ici…"
+              className="w-full flex-1 bg-transparent outline-none resize-none"
+              style={{
+                color: J.text,
+                fontFamily: J.serif,
+                fontSize: 16,
+                lineHeight: 2,
+                minHeight: 300,
+              }}
+            />
+          </div>
         </div>
       )}
     </div>

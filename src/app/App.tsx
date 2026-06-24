@@ -49,12 +49,6 @@ function AuthedApp({
  const [runner, setRunner] = useState<{ wid: string; idx: number } | null>(null);
  const [wod, setWod] = useState<Wod | null>(null);
  const [settingsOpen, setSettingsOpen] = useState(false);
- const [journalDay, setJournalDay] = useState<string | null>(null);
-
- const openJournalDay = (day: string) => {
-   setJournalDay(day);
-   setTab('journal');
- };
 
  const today = dateKey();
  const todayWorkout = workoutForDay(data, today);
@@ -139,7 +133,6 @@ function AuthedApp({
            update={update}
            today={today}
            openSettings={() => setSettingsOpen(true)}
-           openJournalDay={openJournalDay}
          />
        </div>
      )}
@@ -151,8 +144,6 @@ function AuthedApp({
            uid={uid}
            today={today}
            openSettings={() => setSettingsOpen(true)}
-           initialDay={journalDay}
-           onConsumeInitialDay={() => setJournalDay(null)}
          />
        </div>
      )}
@@ -344,3 +335,4 @@ function AppGate({
    />
  );
 }
+

@@ -32,6 +32,8 @@ export interface AppearanceOpts {
   customColors?: CustomColors | null;
   fontFamily?: FontFamilyId;
   fontScale?: FontScaleId;
+  textColor?: string | null;
+  dimColor?: string | null;
   tabTransition?: TabTransitionId;
   animSpeed?: AnimSpeedId;
   buttonAnim?: boolean;
@@ -78,8 +80,8 @@ export function useThemeColors(
       ...base,
       ember,
       gold,
-      text: base.text ?? SEMANTIC_COLORS.text,
-      dim: base.dim ?? SEMANTIC_COLORS.dim,
+      text: opts.textColor || base.text || SEMANTIC_COLORS.text,
+      dim: opts.dimColor || base.dim || SEMANTIC_COLORS.dim,
     };
     const onAccent = base.onAccent ?? '#1A1206';
     const dawn = `linear-gradient(135deg, ${C.ember} 0%, ${C.gold} 100%)`;
@@ -99,7 +101,7 @@ export function useThemeColors(
       animMult,
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [themeId, accent, customKey, animSpeed, opts.tabTransition]);
+  }, [themeId, accent, customKey, animSpeed, opts.tabTransition, opts.textColor, opts.dimColor]);
 }
 
 export function ThemeProvider({

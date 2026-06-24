@@ -34,6 +34,8 @@ export function ThemeSettings({ data, update }: ThemeSettingsProps) {
   const custom = data.customColors || DEFAULT_CUSTOM_COLORS;
   const fontFamily: FontFamilyId = data.fontFamily || 'system';
   const fontScale: FontScaleId = data.fontScale || 'normal';
+  const textColor = data.textColor || null;
+  const dimColor = data.dimColor || null;
   const tabTransition: TabTransitionId = data.tabTransition || 'slide';
   const animSpeed: AnimSpeedId = data.animSpeed || 'normal';
   const buttonAnim = data.buttonAnim !== false;
@@ -216,6 +218,42 @@ export function ThemeSettings({ data, update }: ThemeSettingsProps) {
                 </button>
               );
             })}
+          </div>
+        </div>
+        <div>
+          <div className="text-sm mb-2">Couleur du texte</div>
+          <div className="space-y-3">
+            {([
+              ['principal', textColor, (v: string | null) => update({ textColor: v }), C.text],
+              ['estompé', dimColor, (v: string | null) => update({ dimColor: v }), C.dim],
+            ] as const).map(([label, val, set, fallback]) => (
+              <div key={label} className="flex items-center justify-between">
+                <span className="text-sm capitalize" style={{ color: fallback }}>
+                  {label}
+                </span>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => set(null)}
+                    className="px-3 py-1.5 rounded-lg text-xs font-semibold"
+                    style={{ background: !val ? dawn : C.surf2, color: !val ? '#1A1206' : C.dim }}
+                  >
+                    Auto
+                  </button>
+                  <label className="relative" style={{ width: 32, height: 32 }}>
+                    <span
+                      className="block w-full h-full rounded-full"
+                      style={{ background: val || fallback, border: `1px solid ${C.line}` }}
+                    />
+                    <input
+                      type="color"
+                      value={val || fallback}
+                      onChange={(e) => set(e.target.value)}
+                      className="absolute inset-0 opacity-0 cursor-pointer"
+                    />
+                  </label>
+                </div>
+              </div>
+            ))}
           </div>
         </div>
       </div>

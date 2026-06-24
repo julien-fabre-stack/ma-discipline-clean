@@ -220,6 +220,9 @@ export interface AppData {
   /** Typographie. */
   fontFamily?: FontFamilyId;
   fontScale?: FontScaleId;
+  /** Surcharges de couleur de texte (null/undefined = couleur du thème). */
+  textColor?: string | null;
+  dimColor?: string | null;
   /** Animations. */
   tabTransition?: TabTransitionId;
   animSpeed?: AnimSpeedId;

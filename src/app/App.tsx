@@ -251,6 +251,8 @@ export function App() {
    customColors: appData.data?.customColors ?? null,
    fontFamily: appData.data?.fontFamily,
    fontScale: appData.data?.fontScale,
+   textColor: appData.data?.textColor ?? null,
+   dimColor: appData.data?.dimColor ?? null,
    tabTransition: appData.data?.tabTransition,
    animSpeed: appData.data?.animSpeed,
    buttonAnim: appData.data?.buttonAnim,

@@ -115,7 +115,7 @@ export function NutritionTab({ data, update, today, openSettings }: NutritionTab
         style={{
           top: 0,
           paddingTop: 'calc(env(safe-area-inset-top) + 20px)',
-          background: hexA(C.night, 0.6),
+          background: hexA(C.night, 0.25),
           backdropFilter: 'blur(20px)',
           WebkitBackdropFilter: 'blur(20px)',
         }}

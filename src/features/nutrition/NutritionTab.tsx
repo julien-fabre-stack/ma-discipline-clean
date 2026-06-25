@@ -100,22 +100,29 @@ export function NutritionTab({ data, update, today, openSettings }: NutritionTab
     ['Cal', Math.round(totals.kcal)],
   ];
 
+  const glassCard = {
+    background: hexA(C.surf, 0.72),
+    backdropFilter: 'blur(16px)',
+    WebkitBackdropFilter: 'blur(16px)',
+    border: `1px solid ${C.line}`,
+    boxShadow: cardShadow(),
+  } as const;
+
   return (
     <div className="px-5 pb-28">
       <div
-  className="sticky z-20 pb-3 -mx-5 px-5"
-  style={{
-    top: 0,
-    paddingTop: 'calc(env(safe-area-inset-top) + 20px)',
-    background: hexA(C.night, 0.75),
-    backdropFilter: 'blur(20px)',
-    WebkitBackdropFilter: 'blur(20px)',
-  }}
->
-
+        className="sticky z-20 pb-3 -mx-5 px-5"
+        style={{
+          top: 0,
+          paddingTop: 'calc(env(safe-area-inset-top) + 20px)',
+          background: hexA(C.night, 0.6),
+          backdropFilter: 'blur(20px)',
+          WebkitBackdropFilter: 'blur(20px)',
+        }}
+      >
         <div className="flex items-start justify-between mb-3">
           <h1 className="text-3xl font-extrabold tracking-tight">Nutrition</h1>
-          <button onClick={openSettings} className="p-2 rounded-full" style={{ background: C.surf }}>
+          <button onClick={openSettings} className="p-2 rounded-full" style={{ background: hexA(C.surf, 0.8) }}>
             <Icon name="gear" size={20} color={C.dim} />
           </button>
         </div>
@@ -125,7 +132,7 @@ export function NutritionTab({ data, update, today, openSettings }: NutritionTab
               key={k}
               onClick={() => setView(k)}
               className="flex-1 py-2 rounded-xl text-sm font-semibold"
-              style={{ background: view === k ? dawn : C.surf, color: view === k ? '#1A1206' : C.dim }}
+              style={{ background: view === k ? dawn : hexA(C.surf, 0.8), color: view === k ? '#1A1206' : C.dim }}
             >
               {l}
             </button>
@@ -139,7 +146,7 @@ export function NutritionTab({ data, update, today, openSettings }: NutritionTab
             <button
               onClick={() => goDay(-1)}
               className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0"
-              style={{ background: C.surf }}
+              style={{ background: hexA(C.surf, 0.8) }}
             >
               <Icon name="left" size={18} color={C.dim} />
             </button>
@@ -147,10 +154,7 @@ export function NutritionTab({ data, update, today, openSettings }: NutritionTab
               <div className="font-bold capitalize truncate">{dayLabel}</div>
               {!isToday && (
                 <button
-                  onClick={() => {
-                    setViewKey(today);
-                    setOpenMeal(null);
-                  }}
+                  onClick={() => { setViewKey(today); setOpenMeal(null); }}
                   className="text-xs"
                   style={{ color: C.gold }}
                 >
@@ -162,7 +166,7 @@ export function NutritionTab({ data, update, today, openSettings }: NutritionTab
               onClick={() => goDay(1)}
               disabled={isToday}
               className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0"
-              style={{ background: C.surf, opacity: isToday ? 0.35 : 1 }}
+              style={{ background: hexA(C.surf, 0.8), opacity: isToday ? 0.35 : 1 }}
             >
               <Icon name="right" size={18} color={C.dim} />
             </button>
@@ -172,15 +176,10 @@ export function NutritionTab({ data, update, today, openSettings }: NutritionTab
             {t === 'train' ? 'Jour de séance' : t === 'recup' ? 'Jour de récup' : 'Jour de repos'} · objectif {target} kcal
           </div>
 
-          <div
-            className="rounded-2xl p-4 mb-5 flex justify-between text-center"
-            style={{ background: C.surf, border: `1px solid ${C.line}`, boxShadow: cardShadow() }}
-          >
+          <div className="rounded-2xl p-4 mb-5 flex justify-between text-center" style={glassCard}>
             {summary.map((m, i) => (
               <div key={i} className="flex-1">
-                <div className="text-xs mb-1" style={{ color: C.dim }}>
-                  {m[0]}
-                </div>
+                <div className="text-xs mb-1" style={{ color: C.dim }}>{m[0]}</div>
                 <div
                   className={'font-bold tabular-nums ' + (m[0] === 'Cal' ? 'text-lg' : '')}
                   style={{ color: m[0] === 'Cal' ? C.gold : C.text }}
@@ -197,11 +196,7 @@ export function NutritionTab({ data, update, today, openSettings }: NutritionTab
             const items = meals[key] || [];
             const open = openMeal === key;
             return (
-              <div
-                key={key}
-                className="rounded-2xl mb-3 overflow-hidden"
-                style={{ background: C.surf, border: `1px solid ${C.line}`, boxShadow: cardShadow() }}
-              >
+              <div key={key} className="rounded-2xl mb-3 overflow-hidden" style={glassCard}>
                 <div className="flex items-center px-4 py-3">
                   <button
                     onClick={() => setOpenMeal(open ? null : key)}
@@ -225,14 +220,12 @@ export function NutritionTab({ data, update, today, openSettings }: NutritionTab
                   </button>
                   <div className="text-right mr-3">
                     <div className="font-bold tabular-nums">{Math.round(tot.kcal)}</div>
-                    <div className="text-[10px]" style={{ color: C.dim }}>
-                      kcal
-                    </div>
+                    <div className="text-[10px]" style={{ color: C.dim }}>kcal</div>
                   </div>
                   <button
                     onClick={() => setPicker(key)}
                     className="w-9 h-9 rounded-full flex items-center justify-center"
-                    style={{ background: C.surf2 }}
+                    style={{ background: hexA(C.surf2, 0.8) }}
                   >
                     <Icon name="plus" size={18} color={C.gold} />
                   </button>
@@ -279,22 +272,21 @@ export function NutritionTab({ data, update, today, openSettings }: NutritionTab
                               <div className="flex-1 min-w-0">
                                 <div className="text-sm truncate">{f.name}</div>
                                 <div className="text-xs" style={{ color: C.ok }}>
-                                  {e.qty}
-                                  {f.unit === 'g' ? ' g' : '×'} · <span style={{ color: C.dim }}>{Math.round(m.kcal)} kcal</span>
+                                  {e.qty}{f.unit === 'g' ? ' g' : '×'} · <span style={{ color: C.dim }}>{Math.round(m.kcal)} kcal</span>
                                 </div>
                               </div>
                               <div className="flex items-center gap-1.5">
                                 <button
                                   onClick={() => changeQty(key, i, e.qty - (f.unit === 'g' ? 10 : 1))}
                                   className="w-7 h-7 rounded-full flex items-center justify-center"
-                                  style={{ background: C.surf2 }}
+                                  style={{ background: hexA(C.surf2, 0.8) }}
                                 >
                                   <Icon name="minus" size={13} />
                                 </button>
                                 <button
                                   onClick={() => changeQty(key, i, e.qty + (f.unit === 'g' ? 10 : 1))}
                                   className="w-7 h-7 rounded-full flex items-center justify-center"
-                                  style={{ background: C.surf2 }}
+                                  style={{ background: hexA(C.surf2, 0.8) }}
                                 >
                                   <Icon name="plus" size={13} />
                                 </button>
@@ -312,16 +304,13 @@ export function NutritionTab({ data, update, today, openSettings }: NutritionTab
                               onChange={(e) => setSaveName(e.target.value)}
                               placeholder="Nom du repas enregistré"
                               className="w-full px-3 py-2.5 rounded-xl mb-2 outline-none text-sm"
-                              style={{ background: C.surf2, color: C.text, border: `1px solid ${C.line}` }}
+                              style={{ background: hexA(C.surf2, 0.8), color: C.text, border: `1px solid ${C.line}` }}
                             />
                             <div className="flex gap-2">
                               <button
-                                onClick={() => {
-                                  setSaveDraft(null);
-                                  setSaveName('');
-                                }}
+                                onClick={() => { setSaveDraft(null); setSaveName(''); }}
                                 className="flex-1 py-2 rounded-xl text-sm font-semibold"
-                                style={{ background: C.surf2, color: C.dim }}
+                                style={{ background: hexA(C.surf2, 0.8), color: C.dim }}
                               >
                                 Annuler
                               </button>
@@ -338,12 +327,7 @@ export function NutritionTab({ data, update, today, openSettings }: NutritionTab
                           <button
                             onClick={() => {
                               setSaveDraft(key);
-                              setSaveName(
-                                `${label} · ${parseKey(viewKey).toLocaleDateString('fr-FR', {
-                                  day: 'numeric',
-                                  month: 'short',
-                                })}`
-                              );
+                              setSaveName(`${label} · ${parseKey(viewKey).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })}`);
                             }}
                             className="w-full flex items-center justify-center gap-2 py-2.5 text-sm font-semibold"
                             style={{ borderTop: `1px solid ${C.line}`, color: C.gold }}
@@ -358,10 +342,7 @@ export function NutritionTab({ data, update, today, openSettings }: NutritionTab
             );
           })}
 
-          <div
-            className="rounded-2xl p-4 mt-2"
-            style={{ background: C.surf, border: `1px solid ${C.line}`, boxShadow: cardShadow() }}
-          >
+          <div className="rounded-2xl p-4 mt-2" style={glassCard}>
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-2 font-bold">
                 <Icon name="drop" size={18} color={C.blue} /> Eau
@@ -370,7 +351,7 @@ export function NutritionTab({ data, update, today, openSettings }: NutritionTab
                 {water.toFixed(2)} / {data.targets.water} L
               </div>
             </div>
-            <div className="h-2 rounded-full overflow-hidden mb-3" style={{ background: C.surf2 }}>
+            <div className="h-2 rounded-full overflow-hidden mb-3" style={{ background: hexA(C.surf2, 0.8) }}>
               <div
                 className="h-full"
                 style={{ width: `${Math.min(100, (water / data.targets.water) * 100)}%`, background: C.blue }}
@@ -380,14 +361,14 @@ export function NutritionTab({ data, update, today, openSettings }: NutritionTab
               <button
                 onClick={() => setDay({ water: Math.max(0, +(water - 0.25).toFixed(2)) })}
                 className="flex-1 py-2 rounded-xl flex items-center justify-center"
-                style={{ background: C.surf2 }}
+                style={{ background: hexA(C.surf2, 0.8) }}
               >
                 <Icon name="minus" size={16} />
               </button>
               <button
                 onClick={() => setDay({ water: +(water + 0.25).toFixed(2) })}
                 className="flex-[2] py-2 rounded-xl font-semibold flex items-center justify-center gap-2"
-                style={{ background: C.surf2, color: C.blue }}
+                style={{ background: hexA(C.surf2, 0.8), color: C.blue }}
               >
                 <Icon name="plus" size={16} /> +25 cl
               </button>
@@ -403,20 +384,12 @@ export function NutritionTab({ data, update, today, openSettings }: NutritionTab
               onAddCustom={(f: Food) => update({ customFoods: [...(data.customFoods || []), f] })}
               onPick={(f, q) => {
                 if (!allFoods.find((x) => x.id === f.id)) {
-                  update({
-                    customFoods: [
-                      ...(data.customFoods || []),
-                      { id: f.id, name: f.name, unit: f.unit, kcal: f.kcal, p: f.p, c: f.c, f: f.f },
-                    ],
-                  });
+                  update({ customFoods: [...(data.customFoods || []), { id: f.id, name: f.name, unit: f.unit, kcal: f.kcal, p: f.p, c: f.c, f: f.f }] });
                 }
                 addToMeal(picker, { id: f.id, qty: q });
                 setPicker(null);
               }}
-              onPickCombo={(c) => {
-                addCombo(picker, c);
-                setPicker(null);
-              }}
+              onPickCombo={(c) => { addCombo(picker, c); setPicker(null); }}
             />
           )}
         </>

@@ -51,7 +51,18 @@ export const monthLabel = (mk: string): string => {
 export const inRange = (k: string, start: string, end: string): boolean =>
   k >= start && k <= end;
 
-export const uid = (): string => 'x' + Math.random().toString(36).slice(2, 9);
+/**
+ * Génère un identifiant unique.
+ * Utilise crypto.randomUUID() (standard Web, disponible iOS 15.4+ / Chrome 92+)
+ * avec fallback Math.random() pour les rares contextes sans crypto.
+ */
+export const uid = (): string => {
+  try {
+    return crypto.randomUUID();
+  } catch {
+    return 'x' + Date.now().toString(36) + Math.random().toString(36).slice(2, 9);
+  }
+};
 
 export interface PruneResult<T> {
   kept: Record<string, T>;

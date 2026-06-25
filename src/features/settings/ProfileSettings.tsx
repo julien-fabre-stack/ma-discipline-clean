@@ -25,7 +25,9 @@ export function ProfileSettings({ data, update }: ProfileSettingsProps) {
     if (!file) return;
     setBusy(true);
     try {
-      const url = await resizeImage(file, 512, 0.82);
+      // Max 256px : un JPEG 256×256 pèse ~15-25 Ko en base64,
+      // bien en dessous de la limite Firestore de 1 Mo par document.
+      const url = await resizeImage(file, 256, 0.80);
       setProfile({ photo: url });
     } catch {
       /* ignore */

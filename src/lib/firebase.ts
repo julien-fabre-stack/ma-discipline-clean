@@ -5,8 +5,9 @@ import {
   type User,
 } from 'firebase/auth';
 import {
-  getFirestore,
-  enableIndexedDbPersistence,
+  initializeFirestore,
+  persistentLocalCache,
+  persistentMultipleTabManager,
   type Firestore,
 } from 'firebase/firestore';
 
@@ -31,13 +32,16 @@ export let firebaseReady = false;
 try {
   app = initializeApp(firebaseConfig);
   auth = getAuth(app);
-  db = getFirestore(app);
-  enableIndexedDbPersistence(db).catch((err) => {
-    console.warn('Persistance hors-ligne non activée :', err?.code || err?.message);
+  // Nouvelle API (v9.19+) : cache IndexedDB persistant multi-onglets,
+  // remplace enableIndexedDbPersistence() qui est dépréciée.
+  db = initializeFirestore(app, {
+    localCache: persistentLocalCache({
+      tabManager: persistentMultipleTabManager(),
+    }),
   });
   firebaseReady = true;
 } catch (e) {
-  console.error(e);
+  console.error('Firebase init error:', e);
 }
 
 export type { User };

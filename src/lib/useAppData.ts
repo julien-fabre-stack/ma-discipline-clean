@@ -37,6 +37,11 @@ export function useAppData(uid: string | null): UseAppDataResult {
   const [pendingWrites, setPendingWrites] = useState(false);
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const docRef = useRef<DocumentReference | null>(null);
+  // Compteur de version locale : incrémenté à chaque update() appelé par l'UI.
+  // Permet d'ignorer les snapshots Firestore qui arrivent PENDANT un debounce
+  // en attente (évite la race condition snapshot ↔ modification locale).
+  const localVersion = useRef(0);
+  const pendingVersion = useRef(0);
 
   useEffect(() => {
     if (!uid || !db) {
@@ -57,6 +62,10 @@ export function useAppData(uid: string | null): UseAppDataResult {
       { includeMetadataChanges: true },
       (snap) => {
         setPendingWrites(snap.metadata.hasPendingWrites);
+
+        // Si un debounce local est en attente, ignorer le snapshot entrant
+        // pour éviter d'écraser une modification UI non encore persistée.
+        if (pendingVersion.current > 0 && snap.metadata.fromCache) return;
 
         const base = snap.exists()
           ? migrateData({ ...defaultAppData(), ...(snap.data() as Partial<AppData>) })
@@ -80,14 +89,23 @@ export function useAppData(uid: string | null): UseAppDataResult {
           });
           if (db) {
             Object.entries(byMonth).forEach(([m, obj]) => {
-              void setDoc(doc(db!, 'users', uid, 'archive', m), obj, { merge: true }).catch((e) =>
-                console.warn('Archivage', m, e)
-              );
+              const archiveRef = doc(db!, 'users', uid, 'archive', m);
+              const attempt = (retries: number) =>
+                setDoc(archiveRef, obj, { merge: true }).catch((e) => {
+                  if (retries > 0) {
+                    setTimeout(() => attempt(retries - 1), 5000);
+                  } else {
+                    console.warn('Archivage échoué définitivement pour', m, e);
+                  }
+                });
+              attempt(2);
             });
           }
 
           if (saveTimer.current) clearTimeout(saveTimer.current);
+          pendingVersion.current++;
           saveTimer.current = setTimeout(() => {
+            pendingVersion.current = Math.max(0, pendingVersion.current - 1);
             void setDoc(ref, next, { merge: true });
           }, SAVE_DEBOUNCE_MS);
         } else {
@@ -104,10 +122,12 @@ export function useAppData(uid: string | null): UseAppDataResult {
     return () => {
       unsub();
       if (saveTimer.current) clearTimeout(saveTimer.current);
+      pendingVersion.current = 0;
     };
   }, [uid]);
 
   const update = useCallback((patch: Partial<AppData>) => {
+    localVersion.current++;
     setData((prev) => {
       if (!prev) return prev;
       const next = { ...prev, ...patch };
@@ -115,7 +135,9 @@ export function useAppData(uid: string | null): UseAppDataResult {
       if (docRef.current) {
         if (saveTimer.current) clearTimeout(saveTimer.current);
         const ref = docRef.current;
+        pendingVersion.current++;
         saveTimer.current = setTimeout(() => {
+          pendingVersion.current = Math.max(0, pendingVersion.current - 1);
           void setDoc(ref, next, { merge: true });
         }, SAVE_DEBOUNCE_MS);
       }

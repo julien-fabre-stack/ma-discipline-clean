@@ -44,7 +44,7 @@ export function SeanceTab({ data, openRunner, openWod, openSettings, markSport }
   const headTitle = todayWorkouts.length ? todayWorkouts.map((w) => w.name).join(' + ') : 'Repos';
 
   const glassCard = {
-    background: hexA(C.surf, 0.72),
+    background: hexA(C.surf, 0.45),
     backdropFilter: 'blur(16px)',
     WebkitBackdropFilter: 'blur(16px)',
     border: `1px solid ${C.line}`,

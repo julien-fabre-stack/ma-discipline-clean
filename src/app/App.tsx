@@ -7,6 +7,7 @@ import { dateKey } from '@/lib/utils';
 import { expandSession, getWorkouts, workoutForDay } from '@/lib/workouts';
 import { ThemeProvider, useTheme } from '@/shared/theme/ThemeProvider';
 import { ConfirmProvider, Icon } from '@/shared/ui';
+import { BackgroundDecor } from '@/shared/ui/BackgroundDecor';
 import type { AppData } from '@/types';
 import { Login } from '@/features/auth/Login';
 import { SeanceTab } from '@/features/seance/SeanceTab';
@@ -82,8 +83,11 @@ function AuthedApp({
        minHeight: '100vh',
        fontFamily: 'var(--font-app)',
        paddingTop: 'env(safe-area-inset-top)',
+       position: 'relative',
      }}
    >
+     <BackgroundDecor seed={tab} />
+     <div style={{ position: 'relative', zIndex: 1 }}>
      {!online && (
        <div
          className="fixed z-40 px-3 py-1.5 rounded-full text-[11px] font-semibold flex items-center gap-1.5"
@@ -185,10 +189,12 @@ function AuthedApp({
          }}
        />
      )}
+     </div>
 
      <div
        className="fixed bottom-0 left-0 right-0 flex"
        style={{
+         zIndex: 30,
          background: hexA(C.night, navAlpha),
          backdropFilter: `blur(${navAlpha < 1 ? 20 : 0}px)`,
          WebkitBackdropFilter: `blur(${navAlpha < 1 ? 20 : 0}px)`,

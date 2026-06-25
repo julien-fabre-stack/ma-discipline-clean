@@ -24,7 +24,7 @@ const WEEKDAYS: [string, number][] = [
 ];
 
 export function SeanceTab({ data, openRunner, openWod, openSettings, markSport }: SeanceTabProps) {
-  const { C, dawn, cardShadow, glowShadow } = useTheme();
+  const { C, dawn, hexA, cardShadow, glowShadow } = useTheme();
   const today = dateKey();
   const todayWorkouts = workoutsForDay(data, today);
   const workouts = getWorkouts(data);
@@ -47,7 +47,13 @@ export function SeanceTab({ data, openRunner, openWod, openSettings, markSport }
     <div className="px-5 pb-28">
     <div
   className="sticky z-20 -mx-5 px-5 pb-3"
-  style={{ top: 0, paddingTop: 'calc(env(safe-area-inset-top) + 20px)', background: C.night }}
+  style={{
+    top: 0,
+    paddingTop: 'calc(env(safe-area-inset-top) + 20px)',
+    background: hexA(C.night, 0.75),
+    backdropFilter: 'blur(20px)',
+    WebkitBackdropFilter: 'blur(20px)',
+  }}
 >
 
         <div className="flex items-start justify-between">

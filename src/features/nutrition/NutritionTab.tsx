@@ -101,9 +101,9 @@ export function NutritionTab({ data, update, today, openSettings }: NutritionTab
   ];
 
   const glassCard = {
-    background: hexA(C.surf, 0.45),
-    backdropFilter: 'blur(16px)',
-    WebkitBackdropFilter: 'blur(16px)',
+    background: 'rgba(0,0,0,0.25)',
+backdropFilter: 'blur(20px)',
+WebkitBackdropFilter: 'blur(20px)',
     border: `1px solid ${C.line}`,
     boxShadow: cardShadow(),
   } as const;

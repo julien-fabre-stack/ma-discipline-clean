@@ -182,6 +182,8 @@ function AuthedApp({
        <Settings
          data={data}
          update={update}
+         online={online}
+         pendingWrites={pendingWrites}
          onClose={() => setSettingsOpen(false)}
          onLogout={() => {
            onLogout();
@@ -292,16 +294,12 @@ function AppGate({
  const { C } = useTheme();
 
  useEffect(() => {
-  document.body.style.background = 'transparent';
-}, []);
-
+   document.body.style.background = 'transparent';
+ }, []);
 
  if (!authReady) {
    return (
-     <div
-       className="min-h-screen flex items-center justify-center"
-       style={{ background: C.night, color: C.dim }}
-     >
+     <div className="min-h-screen flex items-center justify-center" style={{ background: C.night, color: C.dim }}>
        Chargement…
      </div>
    );
@@ -309,10 +307,7 @@ function AppGate({
 
  if (!firebaseReady) {
    return (
-     <div
-       className="min-h-screen flex items-center justify-center text-center px-8"
-       style={{ background: C.night, color: C.ember }}
-     >
+     <div className="min-h-screen flex items-center justify-center text-center px-8" style={{ background: C.night, color: C.ember }}>
        Firebase non configuré.
      </div>
    );
@@ -322,10 +317,7 @@ function AppGate({
 
  if (!data) {
    return (
-     <div
-       className="min-h-screen flex items-center justify-center"
-       style={{ background: C.night, color: C.dim }}
-     >
+     <div className="min-h-screen flex items-center justify-center" style={{ background: C.night, color: C.dim }}>
        {online ? 'Synchronisation…' : 'Hors ligne — données indisponibles'}
      </div>
    );
@@ -342,4 +334,3 @@ function AppGate({
    />
  );
 }
-

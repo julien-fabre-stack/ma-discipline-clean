@@ -292,8 +292,9 @@ function AppGate({
  const { C } = useTheme();
 
  useEffect(() => {
-   document.body.style.background = C.night;
- }, [C.night]);
+  document.body.style.background = 'transparent';
+}, []);
+
 
  if (!authReady) {
    return (

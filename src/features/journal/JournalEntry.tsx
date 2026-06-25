@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { parseKey } from '@/lib/utils';
 import { Icon, useConfirm } from '@/shared/ui';
 import { useJournalSession } from './JournalSession';
@@ -31,6 +31,32 @@ export function JournalEntry({ dayKey, doc, onSave, onDelete, onBack }: JournalE
   const [loaded, setLoaded] = useState(false);
   const [saving, setSaving] = useState(false);
   const [dirty, setDirty] = useState(false);
+
+  // Hauteur visible réelle (réduite quand le clavier iOS s'ouvre).
+  const [vh, setVh] = useState<number | null>(null);
+  const textareaRef = useRef<HTMLTextAreaElement | null>(null);
+
+  useEffect(() => {
+    const vv = window.visualViewport;
+    if (!vv) return;
+    const onResize = () => setVh(vv.height);
+    onResize();
+    vv.addEventListener('resize', onResize);
+    vv.addEventListener('scroll', onResize);
+    return () => {
+      vv.removeEventListener('resize', onResize);
+      vv.removeEventListener('scroll', onResize);
+    };
+  }, []);
+
+  // Garde le curseur visible quand on tape près du bas.
+  const keepCaretVisible = () => {
+    const el = textareaRef.current;
+    if (!el) return;
+    requestAnimationFrame(() => {
+      el.scrollIntoView({ block: 'nearest' });
+    });
+  };
 
   useEffect(() => {
     let alive = true;
@@ -95,7 +121,12 @@ export function JournalEntry({ dayKey, doc, onSave, onDelete, onBack }: JournalE
   return (
     <div
       className="fixed inset-0 z-50 flex flex-col"
-      style={{ background: J.bg, color: J.text, fontFamily: J.serif }}
+      style={{
+        background: J.bg,
+        color: J.text,
+        fontFamily: J.serif,
+        height: vh ? `${vh}px` : '100dvh',
+      }}
     >
       {/* Header */}
       <div
@@ -184,8 +215,11 @@ export function JournalEntry({ dayKey, doc, onSave, onDelete, onBack }: JournalE
               }}
             />
             <textarea
+              ref={textareaRef}
               value={body}
-              onChange={(e) => { setBody(e.target.value); setDirty(true); }}
+              onChange={(e) => { setBody(e.target.value); setDirty(true); keepCaretVisible(); }}
+              onFocus={keepCaretVisible}
+              onKeyUp={keepCaretVisible}
               placeholder="Écris ici…"
               className="w-full flex-1 bg-transparent outline-none resize-none"
               style={{

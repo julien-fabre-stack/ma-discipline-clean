@@ -58,7 +58,7 @@ export function SeanceTab({ data, openRunner, openWod, openSettings, markSport }
         style={{
           top: 0,
           paddingTop: 'calc(env(safe-area-inset-top) + 20px)',
-          background: hexA(C.night, 0.25),
+          background: 'transparent',
           backdropFilter: 'blur(20px)',
           WebkitBackdropFilter: 'blur(20px)',
         }}

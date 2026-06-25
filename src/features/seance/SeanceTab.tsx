@@ -59,7 +59,9 @@ export function SeanceTab({ data, openRunner, openWod, openSettings, markSport }
         style={{
           top: 0,
           paddingTop: 'calc(env(safe-area-inset-top) + 20px)',
-          background: 'transparent',
+          background: hexA(C.night, 0.55),
+backdropFilter: 'blur(20px)',
+WebkitBackdropFilter: 'blur(20px)',
         }}
       >
         <div className="flex items-start justify-between">

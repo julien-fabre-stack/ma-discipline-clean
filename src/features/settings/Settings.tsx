@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { AppData } from '@/types';
 import { useTheme } from '@/shared/theme/ThemeProvider';
 import { Icon, type IconName } from '@/shared/ui';
@@ -15,6 +15,8 @@ export interface SettingsProps {
   update: (patch: Partial<AppData>) => void;
   onClose: () => void;
   onLogout: () => void;
+  online: boolean;
+  pendingWrites: boolean;
 }
 
 type Section = 'profil' | 'training' | 'nutrition' | 'dashboard' | 'apparence' | 'debutant' | 'aide';
@@ -39,17 +41,54 @@ const TITLES: Record<Section, string> = {
   aide: 'Aide & FAQ',
 };
 
-export function Settings({ data, update, onClose, onLogout }: SettingsProps) {
+const LS_KEY = 'ma-discipline-last-sync';
+
+function formatSyncTime(ts: number): string {
+  const now = Date.now();
+  const diff = Math.floor((now - ts) / 1000);
+  if (diff < 60) return 'à l\'instant';
+  if (diff < 3600) return `il y a ${Math.floor(diff / 60)} min`;
+  const d = new Date(ts);
+  return d.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+}
+
+export function Settings({ data, update, onClose, onLogout, online, pendingWrites }: SettingsProps) {
   const { C, cardShadow } = useTheme();
   const [section, setSection] = useState<Section | null>(null);
   const prev = useRef<Section | null>(null);
   if (section) prev.current = section;
   const sec = section || prev.current;
 
+  const [lastSync, setLastSync] = useState<number | null>(() => {
+    const v = localStorage.getItem(LS_KEY);
+    return v ? parseInt(v, 10) : null;
+  });
+
+  // Quand pendingWrites passe à false et qu'on est online = sync réussie
+  const prevPending = useRef(pendingWrites);
+  useEffect(() => {
+    if (prevPending.current && !pendingWrites && online) {
+      const now = Date.now();
+      localStorage.setItem(LS_KEY, String(now));
+      setLastSync(now);
+    }
+    prevPending.current = pendingWrites;
+  }, [pendingWrites, online]);
+
+  const synced = online && !pendingWrites;
+  const dotColor = !online ? '#9C90A8' : pendingWrites ? '#FFC24B' : '#4ADE80';
+  const statusLabel = !online
+    ? 'Hors ligne'
+    : pendingWrites
+    ? 'Sync en cours…'
+    : lastSync
+    ? `Sync · ${formatSyncTime(lastSync)}`
+    : 'Synchronisé';
+
   return (
     <div className="fixed inset-0 z-50 flex flex-col" style={{ background: C.night, color: C.text }}>
       <div
-        className="flex items-center gap-2 px-4 pt-5 pb-3"
+        className="flex items-center gap-2 px-4 pb-3"
         style={{ borderBottom: `1px solid ${C.line}`, paddingTop: 'calc(env(safe-area-inset-top) + 20px)' }}
       >
         {section ? (
@@ -57,9 +96,27 @@ export function Settings({ data, update, onClose, onLogout }: SettingsProps) {
             <Icon name="left" size={20} color={C.gold} />
           </button>
         ) : (
-          <div style={{ width: 36 }} className="flex-shrink-0" />
+          /* Voyant sync — visible uniquement sur la page principale Réglages */
+          <div className="flex items-center gap-1.5 flex-shrink-0" style={{ minWidth: 36 }}>
+            <span
+              className="rounded-full flex-shrink-0"
+              style={{
+                width: 8,
+                height: 8,
+                background: dotColor,
+                boxShadow: synced ? `0 0 6px ${dotColor}` : 'none',
+              }}
+            />
+            <span className="text-[10px] whitespace-nowrap" style={{ color: C.dim }}>
+              {statusLabel}
+            </span>
+          </div>
         )}
-        <div className="font-bold text-lg flex-1 text-center truncate">{section ? TITLES[section] : 'Réglages'}</div>
+
+        <div className="font-bold text-lg flex-1 text-center truncate">
+          {section ? TITLES[section] : 'Réglages'}
+        </div>
+
         <button onClick={onClose} className="p-2 rounded-full flex-shrink-0" style={{ background: C.surf }}>
           <Icon name="x" size={20} color={C.dim} />
         </button>
@@ -87,9 +144,7 @@ export function Settings({ data, update, onClose, onLogout }: SettingsProps) {
               </div>
               <div className="flex-1 text-left min-w-0">
                 <div className="font-semibold text-sm">{l}</div>
-                <div className="text-xs truncate" style={{ color: C.dim }}>
-                  {desc}
-                </div>
+                <div className="text-xs truncate" style={{ color: C.dim }}>{desc}</div>
               </div>
               <Icon name="right" size={18} color={C.dim} />
             </button>

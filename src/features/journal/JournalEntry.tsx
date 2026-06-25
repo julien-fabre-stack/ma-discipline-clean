@@ -31,32 +31,39 @@ export function JournalEntry({ dayKey, doc, onSave, onDelete, onBack }: JournalE
   const [loaded, setLoaded] = useState(false);
   const [saving, setSaving] = useState(false);
   const [dirty, setDirty] = useState(false);
+  const [keyboardH, setKeyboardH] = useState(0);
 
-  // Hauteur visible réelle (réduite quand le clavier iOS s'ouvre).
-  const [vh, setVh] = useState<number | null>(null);
+  const scrollRef = useRef<HTMLDivElement | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
 
+  // Détecte la hauteur du clavier iOS via visualViewport
   useEffect(() => {
     const vv = window.visualViewport;
     if (!vv) return;
-    const onResize = () => setVh(vv.height);
-    onResize();
-    vv.addEventListener('resize', onResize);
-    vv.addEventListener('scroll', onResize);
+    const update = () => {
+      const kh = window.innerHeight - vv.height - vv.offsetTop;
+      setKeyboardH(Math.max(0, kh));
+    };
+    update();
+    vv.addEventListener('resize', update);
+    vv.addEventListener('scroll', update);
     return () => {
-      vv.removeEventListener('resize', onResize);
-      vv.removeEventListener('scroll', onResize);
+      vv.removeEventListener('resize', update);
+      vv.removeEventListener('scroll', update);
     };
   }, []);
 
-  // Garde le curseur visible quand on tape près du bas.
-  const keepCaretVisible = () => {
-    const el = textareaRef.current;
-    if (!el) return;
+  // Scroll vers le bas du conteneur quand le clavier apparaît ou qu'on tape
+  const scrollToBottom = () => {
     requestAnimationFrame(() => {
-      el.scrollIntoView({ block: 'nearest' });
+      const el = scrollRef.current;
+      if (el) el.scrollTop = el.scrollHeight;
     });
   };
+
+  useEffect(() => {
+    if (keyboardH > 0) scrollToBottom();
+  }, [keyboardH]);
 
   useEffect(() => {
     let alive = true;
@@ -125,7 +132,8 @@ export function JournalEntry({ dayKey, doc, onSave, onDelete, onBack }: JournalE
         background: J.bg,
         color: J.text,
         fontFamily: J.serif,
-        height: vh ? `${vh}px` : '100dvh',
+        paddingBottom: keyboardH,
+        transition: 'padding-bottom 0ms',
       }}
     >
       {/* Header */}
@@ -144,16 +152,11 @@ export function JournalEntry({ dayKey, doc, onSave, onDelete, onBack }: JournalE
         >
           <Icon name="left" size={18} color={J.dim} />
         </button>
-
         <div className="flex-1 min-w-0">
-          <div
-            className="text-sm capitalize truncate"
-            style={{ color: J.dim, fontFamily: J.serif, fontStyle: 'italic' }}
-          >
+          <div className="text-sm capitalize truncate" style={{ color: J.dim, fontFamily: J.serif, fontStyle: 'italic' }}>
             {dateLabel}
           </div>
         </div>
-
         {doc && (
           <button
             onClick={remove}
@@ -163,18 +166,11 @@ export function JournalEntry({ dayKey, doc, onSave, onDelete, onBack }: JournalE
             <Icon name="trash" size={17} color={J.dim} />
           </button>
         )}
-
         <button
           onClick={save}
           disabled={saving}
           className="px-4 py-2 text-sm font-semibold flex-shrink-0"
-          style={{
-            background: J.accent,
-            color: '#FFF',
-            borderRadius: 2,
-            fontFamily: J.serif,
-            opacity: saving ? 0.6 : 1,
-          }}
+          style={{ background: J.accent, color: '#FFF', borderRadius: 2, fontFamily: J.serif, opacity: saving ? 0.6 : 1 }}
         >
           {saving ? '…' : 'Enregistrer'}
         </button>
@@ -185,20 +181,12 @@ export function JournalEntry({ dayKey, doc, onSave, onDelete, onBack }: JournalE
           Déchiffrement…
         </div>
       ) : (
-        <div className="flex-1 overflow-y-auto flex flex-col" style={{ background: J.card }}>
-          {/* Numéro du jour en grand */}
-          <div
-            className="flex-shrink-0 px-6 pt-6 pb-2"
-            style={{ borderBottom: `1px solid ${J.border}` }}
-          >
-            <div
-              className="text-6xl font-bold tabular-nums leading-none"
-              style={{ color: J.text, fontFamily: J.serif }}
-            >
+        <div ref={scrollRef} className="flex-1 overflow-y-auto flex flex-col" style={{ background: J.card }}>
+          <div className="flex-shrink-0 px-6 pt-6 pb-2" style={{ borderBottom: `1px solid ${J.border}` }}>
+            <div className="text-6xl font-bold tabular-nums leading-none" style={{ color: J.text, fontFamily: J.serif }}>
               {d.getDate()}
             </div>
           </div>
-
           <div className="flex-1 px-6 pt-4 pb-10 flex flex-col">
             <input
               value={title}
@@ -217,9 +205,12 @@ export function JournalEntry({ dayKey, doc, onSave, onDelete, onBack }: JournalE
             <textarea
               ref={textareaRef}
               value={body}
-              onChange={(e) => { setBody(e.target.value); setDirty(true); keepCaretVisible(); }}
-              onFocus={keepCaretVisible}
-              onKeyUp={keepCaretVisible}
+              onChange={(e) => {
+                setBody(e.target.value);
+                setDirty(true);
+                scrollToBottom();
+              }}
+              onFocus={scrollToBottom}
               placeholder="Écris ici…"
               className="w-full flex-1 bg-transparent outline-none resize-none"
               style={{

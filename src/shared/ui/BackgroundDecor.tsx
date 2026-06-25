@@ -1,28 +1,27 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useTheme } from '@/shared/theme/ThemeProvider';
-
-/**
- * Fond décoratif estompé, affiché derrière toute l'application.
- * Une image est piochée aléatoirement à chaque changement de `seed`
- * (typiquement le changement d'onglet). Le thème reste au premier plan :
- * l'image est posée en très faible opacité, sous un voile de la couleur de fond.
- *
- * Performance : images WebP optimisées (~7-16 ko), une seule <div> en
- * position fixed, pas de ré-render des onglets.
- */
 
 const BG_FILES = ['bg1.webp', 'bg2.webp'];
 
+function pickFile(seed: string | number): string {
+  // Choix déterministe basé sur le seed pour éviter le flash au re-render
+  const idx = typeof seed === 'number'
+    ? seed % BG_FILES.length
+    : Math.abs(seed.split('').reduce((a, c) => a + c.charCodeAt(0), 0)) % BG_FILES.length;
+  return `${import.meta.env.BASE_URL}backgrounds/${BG_FILES[idx]}`;
+}
+
 export function BackgroundDecor({ seed }: { seed: string | number }) {
   const { C, hexA } = useTheme();
-  const [src, setSrc] = useState<string | null>(null);
+  // Initialise directement avec une image — jamais null, pas de flash blanc
+  const [src, setSrc] = useState(() => pickFile(seed));
+  const prevSeed = useRef(seed);
 
   useEffect(() => {
-    const file = BG_FILES[Math.floor(Math.random() * BG_FILES.length)];
-    setSrc(`${import.meta.env.BASE_URL}backgrounds/${file}`);
+    if (seed === prevSeed.current) return;
+    prevSeed.current = seed;
+    setSrc(pickFile(seed));
   }, [seed]);
-
-  if (!src) return null;
 
   return (
     <div
@@ -35,7 +34,6 @@ export function BackgroundDecor({ seed }: { seed: string | number }) {
         overflow: 'hidden',
       }}
     >
-      {/* Image décorative */}
       <div
         style={{
           position: 'absolute',
@@ -45,10 +43,8 @@ export function BackgroundDecor({ seed }: { seed: string | number }) {
           backgroundPosition: 'center',
           backgroundRepeat: 'no-repeat',
           opacity: 0.22,
-          transition: 'opacity 600ms ease',
         }}
       />
-      {/* Voile léger et uniforme pour garantir la lisibilité du contenu */}
       <div
         style={{
           position: 'absolute',

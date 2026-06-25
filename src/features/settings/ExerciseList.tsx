@@ -6,6 +6,20 @@ import { useTheme } from '@/shared/theme/ThemeProvider';
 import { Icon, Stepper, useConfirm } from '@/shared/ui';
 import { ExerciseImg } from '@/shared/ui/ExerciseImg';
 
+/** Traduit un nombre de secondes en libellé lisible : « 1h 05min 30s », « 45min », « 90s ». */
+function humanDuration(totalSec: number): string {
+  const s = Math.max(0, Math.floor(totalSec));
+  if (s === 0) return '0s';
+  const h = Math.floor(s / 3600);
+  const m = Math.floor((s % 3600) / 60);
+  const sec = s % 60;
+  const parts: string[] = [];
+  if (h > 0) parts.push(`${h}h`);
+  if (m > 0) parts.push(`${m}min`);
+  if (sec > 0) parts.push(`${sec}s`);
+  return parts.join(' ');
+}
+
 function ExerciseEditor({
   ex,
   onChange,
@@ -40,19 +54,55 @@ function ExerciseEditor({
         </button>
       </div>
       {ex.timed ? (
-        <div className="flex items-center justify-between py-2 text-sm">
-          <span>Durée (s)</span>
-          <Stepper value={ex.dur} min={5} step={5} onChange={(v) => onChange({ dur: v })} />
+        <div className="py-2 text-sm">
+          <div className="flex items-center justify-between">
+            <span>Durée (secondes)</span>
+            <input
+              type="number"
+              inputMode="numeric"
+              min={0}
+              value={ex.dur}
+              onChange={(e) => onChange({ dur: Math.max(0, Math.floor(+e.target.value || 0)) })}
+              className="w-28 px-3 py-1.5 rounded-lg text-sm text-right outline-none tabular-nums"
+              style={{ background: C.surf, color: C.text, border: `1px solid ${C.line}` }}
+            />
+          </div>
+          <div className="text-right text-xs mt-1" style={{ color: C.gold }}>
+            = {humanDuration(ex.dur)}
+          </div>
         </div>
       ) : (
         <div className="flex items-center justify-between py-2 text-sm">
           <span>Répétitions</span>
-          <Stepper value={ex.reps} min={1} onChange={(v) => onChange({ reps: v })} />
+          <input
+            type="number"
+            inputMode="numeric"
+            min={0}
+            value={ex.reps}
+            onChange={(e) => onChange({ reps: Math.max(0, Math.floor(+e.target.value || 0)) })}
+            className="w-28 px-3 py-1.5 rounded-lg text-sm text-right outline-none tabular-nums"
+            style={{ background: C.surf, color: C.text, border: `1px solid ${C.line}` }}
+          />
         </div>
       )}
-      <div className="flex items-center justify-between py-2 text-sm">
-        <span>Repos après (s)</span>
-        <Stepper value={ex.rest} min={0} step={5} onChange={(v) => onChange({ rest: v })} />
+      <div className="py-2 text-sm">
+        <div className="flex items-center justify-between">
+          <span>Repos après (secondes)</span>
+          <input
+            type="number"
+            inputMode="numeric"
+            min={0}
+            value={ex.rest}
+            onChange={(e) => onChange({ rest: Math.max(0, Math.floor(+e.target.value || 0)) })}
+            className="w-28 px-3 py-1.5 rounded-lg text-sm text-right outline-none tabular-nums"
+            style={{ background: C.surf, color: C.text, border: `1px solid ${C.line}` }}
+          />
+        </div>
+        {ex.rest > 0 && (
+          <div className="text-right text-xs mt-1" style={{ color: C.dim }}>
+            = {humanDuration(ex.rest)}
+          </div>
+        )}
       </div>
       <button
         onClick={onClose}
@@ -150,7 +200,7 @@ export function ExerciseList({ items, onChange }: { items: Exercise[]; onChange:
                   <div className="text-sm truncate">{ex.name}</div>
                   <div className="text-xs" style={{ color: C.dim }}>
                     {ex.sets > 1 ? ex.sets + '× ' : ''}
-                    {ex.timed ? ex.dur + ' s' : ex.reps + ' reps'} · repos {ex.rest}s
+                    {ex.timed ? humanDuration(ex.dur) : ex.reps + ' reps'} · repos {humanDuration(ex.rest)}
                   </div>
                 </button>
                 <button onClick={() => openEdit(i)} className="p-1.5 rounded-lg" style={{ background: C.surf }}>

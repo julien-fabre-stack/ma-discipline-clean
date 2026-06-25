@@ -52,15 +52,14 @@ export function SeanceTab({ data, openRunner, openWod, openSettings, markSport }
   } as const;
 
   return (
-    <div className="px-5 pb-28">
+    <div className="pb-28">
+      {/* Header fixe transparent sur le wallpaper */}
       <div
-        className="sticky z-20 -mx-5 px-5 pb-3"
+        className="fixed left-0 right-0 z-20 px-5 pb-3"
         style={{
           top: 0,
           paddingTop: 'calc(env(safe-area-inset-top) + 20px)',
           background: 'transparent',
-          backdropFilter: 'blur(20px)',
-          WebkitBackdropFilter: 'blur(20px)',
         }}
       >
         <div className="flex items-start justify-between">
@@ -73,110 +72,111 @@ export function SeanceTab({ data, openRunner, openWod, openSettings, markSport }
               {cycleLabelFor(data, today)}
             </div>
           </div>
-          <button onClick={openSettings} className="p-2 rounded-full" style={{ background: hexA(C.surf, 0.8) }}>
+          <button onClick={openSettings} className="p-2 rounded-full" style={{ background: hexA(C.surf, 0.6) }}>
             <Icon name="gear" size={20} color={C.dim} />
           </button>
         </div>
       </div>
 
-      <div className="pt-5" />
+      {/* Spacer pour compenser le header fixed */}
+      <div style={{ height: 'calc(env(safe-area-inset-top) + 120px)' }} />
 
-      {todayWorkouts.length ? (
-        todayWorkouts.map((w) => {
-          const hasProg = progWid === w.id;
-          return (
-            <div key={w.id} className="rounded-3xl p-5 mb-4" style={glassCard}>
-              <div className="font-bold mb-1">{w.name}</div>
-              <div className="text-sm mb-4" style={{ color: C.dim }}>
-                {(w.items || []).length} exercices · minuteurs auto.
-                {hasProg && ' Séance en cours.'}
-              </div>
-              <div className="flex gap-2">
-                {hasProg && (
-                  <button
-                    onClick={() => openRunner(w.id, data.progress!.idx)}
-                    className="flex-1 py-3.5 rounded-2xl font-bold flex items-center justify-center gap-2"
-                    style={{ background: dawn, color: '#1A1206', boxShadow: glowShadow() }}
-                  >
-                    <Icon name="play" size={20} /> Reprendre
-                  </button>
-                )}
-                <button
-                  onClick={() => openRunner(w.id, 0)}
-                  className="flex-1 py-3.5 rounded-2xl font-bold flex items-center justify-center gap-2"
-                  style={{ background: hasProg ? C.surf2 : dawn, color: hasProg ? C.text : '#1A1206' }}
-                >
-                  <Icon name={hasProg ? 'skip' : 'play'} size={20} /> {hasProg ? 'Recommencer' : 'Démarrer'}
-                </button>
-              </div>
-            </div>
-          );
-        })
-      ) : (
-        <div className="rounded-3xl p-5 mb-4 text-center" style={glassCard}>
-          <div className="text-sm" style={{ color: C.dim }}>
-            Pas de séance prévue aujourd'hui. Profite du repos.
-          </div>
-        </div>
-      )}
-
-      <div className="rounded-3xl p-5 mb-4" style={glassCard}>
-        <div className="font-bold mb-1 flex items-center gap-2">
-          <Icon name="flame" size={18} color={C.gold} /> WOD
-        </div>
-        <div className="text-sm mb-3" style={{ color: C.dim }}>
-          Échauffement 10 burpees + 10 remises debout, puis le WOD choisi.
-        </div>
-        {(data.wods || []).length === 0 ? (
-          <div className="text-sm" style={{ color: C.gold }}>
-            Ajoute tes WODs dans Réglages → WOD.
-          </div>
-        ) : (
-          (data.wods || []).map((w) => (
-            <button
-              key={w.id}
-              onClick={() => openWod(w)}
-              className="w-full flex items-center justify-between px-4 py-3 rounded-2xl mb-2"
-              style={{ background: hexA(C.surf2, 0.8) }}
-            >
-              <span className="text-sm font-medium">{w.name}</span>
-              <Icon name="play" size={18} color={C.gold} />
-            </button>
-          ))
-        )}
-      </div>
-
-      <button
-        onClick={markSport}
-        className="w-full py-3 rounded-2xl font-semibold flex items-center justify-center gap-2 mb-6"
-        style={{ background: hexA(C.surf2, 0.8), color: sportDone ? C.ok : C.text }}
-      >
-        <Icon name="check" size={18} /> {sportDone ? '« Sport » fait ✓' : "Marquer « Sport » fait aujourd'hui"}
-      </button>
-
-      <Collapsible title="La semaine type" open={openWeek} onToggle={() => setOpenWeek((o) => !o)}>
-        <div className="rounded-2xl overflow-hidden" style={{ border: `1px solid ${C.line}` }}>
-          {WEEKDAYS.map(([lbl, wd], i) => {
-            const nm = namesOf(wt[wd]);
-            const isToday = wd === todayWd;
+      <div className="px-5">
+        {todayWorkouts.length ? (
+          todayWorkouts.map((w) => {
+            const hasProg = progWid === w.id;
             return (
-              <div
-                key={wd}
-                className="flex justify-between px-4 py-3 text-sm"
-                style={{
-                  background: isToday ? hexA(C.surf2, 0.8) : i % 2 ? hexA(C.surf, 0.6) : hexA(C.night, 0.4),
-                  borderLeft: isToday ? `3px solid ${C.gold}` : '3px solid transparent',
-                }}
-              >
-                <span style={{ fontWeight: isToday ? 700 : 400, color: isToday ? C.gold : C.text }}>
-                  {lbl}
-                </span>
-                <span style={{ color: nm ? C.text : C.dim }}>{nm || 'Repos'}</span>
+              <div key={w.id} className="rounded-3xl p-5 mb-4" style={glassCard}>
+                <div className="font-bold mb-1">{w.name}</div>
+                <div className="text-sm mb-4" style={{ color: C.dim }}>
+                  {(w.items || []).length} exercices · minuteurs auto.
+                  {hasProg && ' Séance en cours.'}
+                </div>
+                <div className="flex gap-2">
+                  {hasProg && (
+                    <button
+                      onClick={() => openRunner(w.id, data.progress!.idx)}
+                      className="flex-1 py-3.5 rounded-2xl font-bold flex items-center justify-center gap-2"
+                      style={{ background: dawn, color: '#1A1206', boxShadow: glowShadow() }}
+                    >
+                      <Icon name="play" size={20} /> Reprendre
+                    </button>
+                  )}
+                  <button
+                    onClick={() => openRunner(w.id, 0)}
+                    className="flex-1 py-3.5 rounded-2xl font-bold flex items-center justify-center gap-2"
+                    style={{ background: hasProg ? C.surf2 : dawn, color: hasProg ? C.text : '#1A1206' }}
+                  >
+                    <Icon name={hasProg ? 'skip' : 'play'} size={20} /> {hasProg ? 'Recommencer' : 'Démarrer'}
+                  </button>
+                </div>
               </div>
             );
-          })}
+          })
+        ) : (
+          <div className="rounded-3xl p-5 mb-4 text-center" style={glassCard}>
+            <div className="text-sm" style={{ color: C.dim }}>
+              Pas de séance prévue aujourd'hui. Profite du repos.
+            </div>
+          </div>
+        )}
+
+        <div className="rounded-3xl p-5 mb-4" style={glassCard}>
+          <div className="font-bold mb-1 flex items-center gap-2">
+            <Icon name="flame" size={18} color={C.gold} /> WOD
+          </div>
+          <div className="text-sm mb-3" style={{ color: C.dim }}>
+            Échauffement 10 burpees + 10 remises debout, puis le WOD choisi.
+          </div>
+          {(data.wods || []).length === 0 ? (
+            <div className="text-sm" style={{ color: C.gold }}>
+              Ajoute tes WODs dans Réglages → WOD.
+            </div>
+          ) : (
+            (data.wods || []).map((w) => (
+              <button
+                key={w.id}
+                onClick={() => openWod(w)}
+                className="w-full flex items-center justify-between px-4 py-3 rounded-2xl mb-2"
+                style={{ background: hexA(C.surf2, 0.7) }}
+              >
+                <span className="text-sm font-medium">{w.name}</span>
+                <Icon name="play" size={18} color={C.gold} />
+              </button>
+            ))
+          )}
         </div>
-      </Collapsible>
+
+        <button
+          onClick={markSport}
+          className="w-full py-3 rounded-2xl font-semibold flex items-center justify-center gap-2 mb-6"
+          style={{ background: hexA(C.surf2, 0.7), color: sportDone ? C.ok : C.text }}
+        >
+          <Icon name="check" size={18} /> {sportDone ? '« Sport » fait ✓' : "Marquer « Sport » fait aujourd'hui"}
+        </button>
+
+        <Collapsible title="La semaine type" open={openWeek} onToggle={() => setOpenWeek((o) => !o)}>
+          <div className="rounded-2xl overflow-hidden" style={{ border: `1px solid ${C.line}` }}>
+            {WEEKDAYS.map(([lbl, wd], i) => {
+              const nm = namesOf(wt[wd]);
+              const isToday = wd === todayWd;
+              return (
+                <div
+                  key={wd}
+                  className="flex justify-between px-4 py-3 text-sm"
+                  style={{
+                    background: isToday ? hexA(C.surf2, 0.7) : i % 2 ? hexA(C.surf, 0.5) : hexA(C.night, 0.3),
+                    borderLeft: isToday ? `3px solid ${C.gold}` : '3px solid transparent',
+                  }}
+                >
+                  <span style={{ fontWeight: isToday ? 700 : 400, color: isToday ? C.gold : C.text }}>{lbl}</span>
+                  <span style={{ color: nm ? C.text : C.dim }}>{nm || 'Repos'}</span>
+                </div>
+              );
+            })}
+          </div>
+        </Collapsible>
+      </div>
     </div>
   );
 }

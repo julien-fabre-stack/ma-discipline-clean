@@ -43,19 +43,26 @@ export function SeanceTab({ data, openRunner, openWod, openSettings, markSport }
   const sportDone = Boolean(day.habits && !Array.isArray(day.habits) && day.habits.sport);
   const headTitle = todayWorkouts.length ? todayWorkouts.map((w) => w.name).join(' + ') : 'Repos';
 
+  const glassCard = {
+    background: hexA(C.surf, 0.72),
+    backdropFilter: 'blur(16px)',
+    WebkitBackdropFilter: 'blur(16px)',
+    border: `1px solid ${C.line}`,
+    boxShadow: cardShadow(),
+  } as const;
+
   return (
     <div className="px-5 pb-28">
-    <div
-  className="sticky z-20 -mx-5 px-5 pb-3"
-  style={{
-    top: 0,
-    paddingTop: 'calc(env(safe-area-inset-top) + 20px)',
-    background: hexA(C.night, 0.75),
-    backdropFilter: 'blur(20px)',
-    WebkitBackdropFilter: 'blur(20px)',
-  }}
->
-
+      <div
+        className="sticky z-20 -mx-5 px-5 pb-3"
+        style={{
+          top: 0,
+          paddingTop: 'calc(env(safe-area-inset-top) + 20px)',
+          background: hexA(C.night, 0.6),
+          backdropFilter: 'blur(20px)',
+          WebkitBackdropFilter: 'blur(20px)',
+        }}
+      >
         <div className="flex items-start justify-between">
           <div>
             <div className="text-xs tracking-widest uppercase mb-1" style={{ color: C.dim }}>
@@ -66,7 +73,7 @@ export function SeanceTab({ data, openRunner, openWod, openSettings, markSport }
               {cycleLabelFor(data, today)}
             </div>
           </div>
-          <button onClick={openSettings} className="p-2 rounded-full" style={{ background: C.surf }}>
+          <button onClick={openSettings} className="p-2 rounded-full" style={{ background: hexA(C.surf, 0.8) }}>
             <Icon name="gear" size={20} color={C.dim} />
           </button>
         </div>
@@ -78,11 +85,7 @@ export function SeanceTab({ data, openRunner, openWod, openSettings, markSport }
         todayWorkouts.map((w) => {
           const hasProg = progWid === w.id;
           return (
-            <div
-              key={w.id}
-              className="rounded-3xl p-5 mb-4"
-              style={{ background: C.surf, border: `1px solid ${C.line}`, boxShadow: cardShadow() }}
-            >
+            <div key={w.id} className="rounded-3xl p-5 mb-4" style={glassCard}>
               <div className="font-bold mb-1">{w.name}</div>
               <div className="text-sm mb-4" style={{ color: C.dim }}>
                 {(w.items || []).length} exercices · minuteurs auto.
@@ -110,20 +113,14 @@ export function SeanceTab({ data, openRunner, openWod, openSettings, markSport }
           );
         })
       ) : (
-        <div
-          className="rounded-3xl p-5 mb-4 text-center"
-          style={{ background: C.surf, border: `1px solid ${C.line}`, boxShadow: cardShadow() }}
-        >
+        <div className="rounded-3xl p-5 mb-4 text-center" style={glassCard}>
           <div className="text-sm" style={{ color: C.dim }}>
             Pas de séance prévue aujourd'hui. Profite du repos.
           </div>
         </div>
       )}
 
-      <div
-        className="rounded-3xl p-5 mb-4"
-        style={{ background: C.surf, border: `1px solid ${C.line}`, boxShadow: cardShadow() }}
-      >
+      <div className="rounded-3xl p-5 mb-4" style={glassCard}>
         <div className="font-bold mb-1 flex items-center gap-2">
           <Icon name="flame" size={18} color={C.gold} /> WOD
         </div>
@@ -140,7 +137,7 @@ export function SeanceTab({ data, openRunner, openWod, openSettings, markSport }
               key={w.id}
               onClick={() => openWod(w)}
               className="w-full flex items-center justify-between px-4 py-3 rounded-2xl mb-2"
-              style={{ background: C.surf2 }}
+              style={{ background: hexA(C.surf2, 0.8) }}
             >
               <span className="text-sm font-medium">{w.name}</span>
               <Icon name="play" size={18} color={C.gold} />
@@ -152,9 +149,9 @@ export function SeanceTab({ data, openRunner, openWod, openSettings, markSport }
       <button
         onClick={markSport}
         className="w-full py-3 rounded-2xl font-semibold flex items-center justify-center gap-2 mb-6"
-        style={{ background: C.surf2, color: sportDone ? C.ok : C.text }}
+        style={{ background: hexA(C.surf2, 0.8), color: sportDone ? C.ok : C.text }}
       >
-        <Icon name="check" size={18} /> {sportDone ? '« Sport » fait ✓' : 'Marquer « Sport » fait aujourd\'hui'}
+        <Icon name="check" size={18} /> {sportDone ? '« Sport » fait ✓' : "Marquer « Sport » fait aujourd'hui"}
       </button>
 
       <Collapsible title="La semaine type" open={openWeek} onToggle={() => setOpenWeek((o) => !o)}>
@@ -167,7 +164,7 @@ export function SeanceTab({ data, openRunner, openWod, openSettings, markSport }
                 key={wd}
                 className="flex justify-between px-4 py-3 text-sm"
                 style={{
-                  background: isToday ? C.surf2 : i % 2 ? C.surf : C.night,
+                  background: isToday ? hexA(C.surf2, 0.8) : i % 2 ? hexA(C.surf, 0.6) : hexA(C.night, 0.4),
                   borderLeft: isToday ? `3px solid ${C.gold}` : '3px solid transparent',
                 }}
               >

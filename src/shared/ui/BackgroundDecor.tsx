@@ -44,16 +44,16 @@ export function BackgroundDecor({ seed }: { seed: string | number }) {
           backgroundSize: 'cover',
           backgroundPosition: 'center',
           backgroundRepeat: 'no-repeat',
-          opacity: 0.07,
+          opacity: 0.22,
           transition: 'opacity 600ms ease',
         }}
       />
-      {/* Voile de fond + dégradé pour garantir la lisibilité du contenu */}
+      {/* Voile léger et uniforme pour garantir la lisibilité du contenu */}
       <div
         style={{
           position: 'absolute',
           inset: 0,
-          background: `linear-gradient(180deg, ${hexA(C.night, 0.55)} 0%, ${hexA(C.night, 0.8)} 60%, ${C.night} 100%)`,
+          background: hexA(C.night, 0.45),
         }}
       />
     </div>

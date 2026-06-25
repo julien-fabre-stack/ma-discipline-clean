@@ -78,7 +78,7 @@ function AuthedApp({
    <JournalSessionProvider verifier={data.journalMeta?.verifier ?? null}>
    <div
      style={{
-       background: C.night,
+       background: transparent,
        color: C.text,
        minHeight: '100vh',
        fontFamily: 'var(--font-app)',

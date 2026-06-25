@@ -31,7 +31,7 @@ html,
 body {
   margin: 0;
   padding: 0;
-  background: var(--c-night);
+  background: transparent;
   color: var(--c-text);
   font-family: var(--font-app);
   font-size: calc(100% * var(--font-scale));

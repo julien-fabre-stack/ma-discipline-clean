@@ -116,7 +116,7 @@ WebkitBackdropFilter: 'blur(20px)',
         style={{
           top: 0,
           paddingTop: 'calc(env(safe-area-inset-top) + 20px)',
-          background: hexA(C.night, 0.55),
+          background: 'rgba(0,0,0,0.25)',
 backdropFilter: 'blur(20px)',
 WebkitBackdropFilter: 'blur(20px)',
         }}

@@ -116,7 +116,9 @@ export function NutritionTab({ data, update, today, openSettings }: NutritionTab
         style={{
           top: 0,
           paddingTop: 'calc(env(safe-area-inset-top) + 20px)',
-          background: 'transparent',
+          background: hexA(C.night, 0.55),
+backdropFilter: 'blur(20px)',
+WebkitBackdropFilter: 'blur(20px)',
         }}
       >
         <div className="flex items-start justify-between mb-3">

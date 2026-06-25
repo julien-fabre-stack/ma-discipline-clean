@@ -36,7 +36,6 @@ export function JournalEntry({ dayKey, doc, onSave, onDelete, onBack }: JournalE
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
 
-  // Détecte la hauteur du clavier iOS via visualViewport
   useEffect(() => {
     const vv = window.visualViewport;
     if (!vv) return;
@@ -53,7 +52,6 @@ export function JournalEntry({ dayKey, doc, onSave, onDelete, onBack }: JournalE
     };
   }, []);
 
-  // Scroll vers le bas du conteneur quand le clavier apparaît ou qu'on tape
   const scrollToBottom = () => {
     requestAnimationFrame(() => {
       const el = scrollRef.current;
@@ -125,6 +123,9 @@ export function JournalEntry({ dayKey, doc, onSave, onDelete, onBack }: JournalE
     onBack();
   };
 
+  // 64px = hauteur navbar + safe area bottom
+  const bottomPad = keyboardH > 0 ? keyboardH : 64;
+
   return (
     <div
       className="fixed inset-0 z-50 flex flex-col"
@@ -132,8 +133,8 @@ export function JournalEntry({ dayKey, doc, onSave, onDelete, onBack }: JournalE
         background: J.bg,
         color: J.text,
         fontFamily: J.serif,
-        paddingBottom: keyboardH,
-        transition: 'padding-bottom 0ms',
+        paddingBottom: bottomPad,
+        transition: 'padding-bottom 80ms ease',
       }}
     >
       {/* Header */}

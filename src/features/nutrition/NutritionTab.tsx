@@ -93,37 +93,31 @@ export function NutritionTab({ data, update, today, openSettings }: NutritionTab
   const vqr = (v: number) => Math.round((v / target) * 100);
 
   const summary: [string, number, string?][] = [
-    ['Lipid', totals.f],
-    ['Glu', totals.c],
-    ['Prot', totals.p],
-    ['VQR', vqr(totals.kcal), '%'],
-    ['Cal', Math.round(totals.kcal)],
+    ['Lipid', totals.f], ['Glu', totals.c], ['Prot', totals.p],
+    ['VQR', vqr(totals.kcal), '%'], ['Cal', Math.round(totals.kcal)],
   ];
 
   const glassCard = {
-    background: 'rgba(0,0,0,0.25)',
-backdropFilter: 'blur(20px)',
-WebkitBackdropFilter: 'blur(20px)',
+    background: hexA(C.surf, 0.45),
+    backdropFilter: 'blur(12px)',
+    WebkitBackdropFilter: 'blur(12px)',
     border: `1px solid ${C.line}`,
     boxShadow: cardShadow(),
   } as const;
 
   return (
-    <div className="pb-28">
-      {/* Header fixe transparent */}
+    <div
+      className="flex flex-col"
+      style={{ height: 'calc(100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 64px)' }}
+    >
+      {/* Header dans le flux — même pattern que SuiviTab */}
       <div
-        className="fixed left-0 right-0 z-20 px-5 pb-3"
-        style={{
-          top: 0,
-          paddingTop: 'calc(env(safe-area-inset-top) + 20px)',
-          background: 'rgba(0,0,0,0.25)',
-backdropFilter: 'blur(20px)',
-WebkitBackdropFilter: 'blur(20px)',
-        }}
+        className="flex-shrink-0 px-5 pb-3"
+        style={{ paddingTop: 'calc(env(safe-area-inset-top) + 20px)' }}
       >
         <div className="flex items-start justify-between mb-3">
           <h1 className="text-3xl font-extrabold tracking-tight">Nutrition</h1>
-          <button onClick={openSettings} className="p-2 rounded-full" style={{ background: hexA(C.surf, 0.6) }}>
+          <button onClick={openSettings} className="p-2 rounded-full" style={{ background: C.surf }}>
             <Icon name="gear" size={20} color={C.dim} />
           </button>
         </div>
@@ -133,10 +127,7 @@ WebkitBackdropFilter: 'blur(20px)',
               key={k}
               onClick={() => setView(k)}
               className="flex-1 py-2 rounded-xl text-sm font-semibold"
-              style={{
-                background: view === k ? dawn : hexA(C.surf, 0.6),
-                color: view === k ? '#1A1206' : C.dim,
-              }}
+              style={{ background: view === k ? dawn : C.surf, color: view === k ? '#1A1206' : C.dim }}
             >
               {l}
             </button>
@@ -144,28 +135,25 @@ WebkitBackdropFilter: 'blur(20px)',
         </div>
       </div>
 
-      {/* Spacer */}
-      <div style={{ height: 'calc(env(safe-area-inset-top) + 130px)' }} />
-
-      <div className="px-5">
+      {/* Zone scrollable */}
+      <div
+        className="flex-1 overflow-y-auto px-5 pb-6"
+        style={{ borderTop: `1px solid ${C.line}` }}
+      >
         {view === 'journal' ? (
           <>
-            <div className="flex items-center gap-2 mb-4">
+            <div className="flex items-center gap-2 my-4">
               <button
                 onClick={() => goDay(-1)}
                 className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0"
-                style={{ background: hexA(C.surf, 0.6) }}
+                style={{ background: C.surf }}
               >
                 <Icon name="left" size={18} color={C.dim} />
               </button>
               <div className="flex-1 text-center min-w-0">
                 <div className="font-bold capitalize truncate">{dayLabel}</div>
                 {!isToday && (
-                  <button
-                    onClick={() => { setViewKey(today); setOpenMeal(null); }}
-                    className="text-xs"
-                    style={{ color: C.gold }}
-                  >
+                  <button onClick={() => { setViewKey(today); setOpenMeal(null); }} className="text-xs" style={{ color: C.gold }}>
                     revenir à aujourd'hui
                   </button>
                 )}
@@ -174,7 +162,7 @@ WebkitBackdropFilter: 'blur(20px)',
                 onClick={() => goDay(1)}
                 disabled={isToday}
                 className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0"
-                style={{ background: hexA(C.surf, 0.6), opacity: isToday ? 0.35 : 1 }}
+                style={{ background: C.surf, opacity: isToday ? 0.35 : 1 }}
               >
                 <Icon name="right" size={18} color={C.dim} />
               </button>
@@ -188,12 +176,8 @@ WebkitBackdropFilter: 'blur(20px)',
               {summary.map((m, i) => (
                 <div key={i} className="flex-1">
                   <div className="text-xs mb-1" style={{ color: C.dim }}>{m[0]}</div>
-                  <div
-                    className={'font-bold tabular-nums ' + (m[0] === 'Cal' ? 'text-lg' : '')}
-                    style={{ color: m[0] === 'Cal' ? C.gold : C.text }}
-                  >
-                    {m[0] === 'Cal' || m[0] === 'VQR' ? m[1] : (m[1] as number).toFixed(1)}
-                    {m[2] || ''}
+                  <div className={'font-bold tabular-nums ' + (m[0] === 'Cal' ? 'text-lg' : '')} style={{ color: m[0] === 'Cal' ? C.gold : C.text }}>
+                    {m[0] === 'Cal' || m[0] === 'VQR' ? m[1] : (m[1] as number).toFixed(1)}{m[2] || ''}
                   </div>
                 </div>
               ))}
@@ -206,72 +190,33 @@ WebkitBackdropFilter: 'blur(20px)',
               return (
                 <div key={key} className="rounded-2xl mb-3 overflow-hidden" style={glassCard}>
                   <div className="flex items-center px-4 py-3">
-                    <button
-                      onClick={() => setOpenMeal(open ? null : key)}
-                      className="flex-1 text-left flex items-center gap-2"
-                    >
-                      <Icon
-                        name="down"
-                        size={14}
-                        color={C.dim}
-                        style={{
-                          transition: 'transform 320ms cubic-bezier(.22,1,.36,1)',
-                          transform: open ? 'rotate(180deg)' : 'rotate(0deg)',
-                        }}
-                      />
+                    <button onClick={() => setOpenMeal(open ? null : key)} className="flex-1 text-left flex items-center gap-2">
+                      <Icon name="down" size={14} color={C.dim} style={{ transition: 'transform 320ms cubic-bezier(.22,1,.36,1)', transform: open ? 'rotate(180deg)' : 'rotate(0deg)' }} />
                       <span>
                         <div className="font-bold">{label}</div>
-                        <div className="text-xs mt-0.5" style={{ color: C.dim }}>
-                          L {tot.f.toFixed(1)} · G {tot.c.toFixed(1)} · P {tot.p.toFixed(1)} · VQR {vqr(tot.kcal)}%
-                        </div>
+                        <div className="text-xs mt-0.5" style={{ color: C.dim }}>L {tot.f.toFixed(1)} · G {tot.c.toFixed(1)} · P {tot.p.toFixed(1)} · VQR {vqr(tot.kcal)}%</div>
                       </span>
                     </button>
                     <div className="text-right mr-3">
                       <div className="font-bold tabular-nums">{Math.round(tot.kcal)}</div>
                       <div className="text-[10px]" style={{ color: C.dim }}>kcal</div>
                     </div>
-                    <button
-                      onClick={() => setPicker(key)}
-                      className="w-9 h-9 rounded-full flex items-center justify-center"
-                      style={{ background: hexA(C.surf2, 0.7) }}
-                    >
+                    <button onClick={() => setPicker(key)} className="w-9 h-9 rounded-full flex items-center justify-center" style={{ background: hexA(C.surf2, 0.7) }}>
                       <Icon name="plus" size={18} color={C.gold} />
                     </button>
                   </div>
-                  <div
-                    style={{
-                      display: 'grid',
-                      gridTemplateRows: open ? '1fr' : '0fr',
-                      transition: 'grid-template-rows 320ms cubic-bezier(.22,1,.36,1)',
-                    }}
-                  >
-                    <div
-                      style={{
-                        minHeight: 0,
-                        overflow: 'hidden',
-                        opacity: open ? 1 : 0,
-                        transition: `opacity 220ms ease ${open ? '60ms' : '0ms'}`,
-                      }}
-                    >
+                  <div style={{ display: 'grid', gridTemplateRows: open ? '1fr' : '0fr', transition: 'grid-template-rows 320ms cubic-bezier(.22,1,.36,1)' }}>
+                    <div style={{ minHeight: 0, overflow: 'hidden', opacity: open ? 1 : 0, transition: `opacity 220ms ease ${open ? '60ms' : '0ms'}` }}>
                       <div style={{ borderTop: `1px solid ${C.line}` }}>
-                        {items.length === 0 && (
-                          <div className="px-4 py-3 text-sm" style={{ color: C.dim }}>
-                            Aucun aliment. Touche + pour en ajouter.
-                          </div>
-                        )}
+                        {items.length === 0 && <div className="px-4 py-3 text-sm" style={{ color: C.dim }}>Aucun aliment. Touche + pour en ajouter.</div>}
                         {items.map((e, i) => {
                           const f = allFoods.find((x) => x.id === e.id);
                           if (!f) return null;
                           const m = macrosOf(f, e.qty);
                           return (
-                            <SwipeRow
-                              key={e.id ? e.id + '-' + i : i}
-                              style={{ borderTop: i > 0 ? `1px solid ${C.line}` : 'none' }}
+                            <SwipeRow key={e.id ? e.id + '-' + i : i} style={{ borderTop: i > 0 ? `1px solid ${C.line}` : 'none' }}
                               onDelete={async () => {
-                                const ok = await askConfirm({
-                                  title: "Supprimer l'aliment",
-                                  message: `Retirer « ${f.name} » de ce repas ?`,
-                                });
+                                const ok = await askConfirm({ title: "Supprimer l'aliment", message: `Retirer « ${f.name} » de ce repas ?` });
                                 if (ok) changeQty(key, i, 0);
                                 return ok;
                               }}
@@ -279,70 +224,29 @@ WebkitBackdropFilter: 'blur(20px)',
                               <div className="flex items-center px-4 py-2.5">
                                 <div className="flex-1 min-w-0">
                                   <div className="text-sm truncate">{f.name}</div>
-                                  <div className="text-xs" style={{ color: C.ok }}>
-                                    {e.qty}{f.unit === 'g' ? ' g' : '×'} · <span style={{ color: C.dim }}>{Math.round(m.kcal)} kcal</span>
-                                  </div>
+                                  <div className="text-xs" style={{ color: C.ok }}>{e.qty}{f.unit === 'g' ? ' g' : '×'} · <span style={{ color: C.dim }}>{Math.round(m.kcal)} kcal</span></div>
                                 </div>
                                 <div className="flex items-center gap-1.5">
-                                  <button
-                                    onClick={() => changeQty(key, i, e.qty - (f.unit === 'g' ? 10 : 1))}
-                                    className="w-7 h-7 rounded-full flex items-center justify-center"
-                                    style={{ background: hexA(C.surf2, 0.7) }}
-                                  >
-                                    <Icon name="minus" size={13} />
-                                  </button>
-                                  <button
-                                    onClick={() => changeQty(key, i, e.qty + (f.unit === 'g' ? 10 : 1))}
-                                    className="w-7 h-7 rounded-full flex items-center justify-center"
-                                    style={{ background: hexA(C.surf2, 0.7) }}
-                                  >
-                                    <Icon name="plus" size={13} />
-                                  </button>
+                                  <button onClick={() => changeQty(key, i, e.qty - (f.unit === 'g' ? 10 : 1))} className="w-7 h-7 rounded-full flex items-center justify-center" style={{ background: hexA(C.surf2, 0.7) }}><Icon name="minus" size={13} /></button>
+                                  <button onClick={() => changeQty(key, i, e.qty + (f.unit === 'g' ? 10 : 1))} className="w-7 h-7 rounded-full flex items-center justify-center" style={{ background: hexA(C.surf2, 0.7) }}><Icon name="plus" size={13} /></button>
                                 </div>
                               </div>
                             </SwipeRow>
                           );
                         })}
-                        {items.length > 0 &&
-                          (saveDraft === key ? (
-                            <div className="px-4 py-3" style={{ borderTop: `1px solid ${C.line}` }}>
-                              <input
-                                autoFocus
-                                value={saveName}
-                                onChange={(e) => setSaveName(e.target.value)}
-                                placeholder="Nom du repas enregistré"
-                                className="w-full px-3 py-2.5 rounded-xl mb-2 outline-none text-sm"
-                                style={{ background: hexA(C.surf2, 0.7), color: C.text, border: `1px solid ${C.line}` }}
-                              />
-                              <div className="flex gap-2">
-                                <button
-                                  onClick={() => { setSaveDraft(null); setSaveName(''); }}
-                                  className="flex-1 py-2 rounded-xl text-sm font-semibold"
-                                  style={{ background: hexA(C.surf2, 0.7), color: C.dim }}
-                                >
-                                  Annuler
-                                </button>
-                                <button
-                                  onClick={() => saveCombo(key)}
-                                  className="flex-[2] py-2 rounded-xl text-sm font-semibold"
-                                  style={{ background: dawn, color: '#1A1206', boxShadow: glowShadow() }}
-                                >
-                                  Enregistrer
-                                </button>
-                              </div>
+                        {items.length > 0 && (saveDraft === key ? (
+                          <div className="px-4 py-3" style={{ borderTop: `1px solid ${C.line}` }}>
+                            <input autoFocus value={saveName} onChange={(e) => setSaveName(e.target.value)} placeholder="Nom du repas enregistré" className="w-full px-3 py-2.5 rounded-xl mb-2 outline-none text-sm" style={{ background: hexA(C.surf2, 0.7), color: C.text, border: `1px solid ${C.line}` }} />
+                            <div className="flex gap-2">
+                              <button onClick={() => { setSaveDraft(null); setSaveName(''); }} className="flex-1 py-2 rounded-xl text-sm font-semibold" style={{ background: hexA(C.surf2, 0.7), color: C.dim }}>Annuler</button>
+                              <button onClick={() => saveCombo(key)} className="flex-[2] py-2 rounded-xl text-sm font-semibold" style={{ background: dawn, color: '#1A1206', boxShadow: glowShadow() }}>Enregistrer</button>
                             </div>
-                          ) : (
-                            <button
-                              onClick={() => {
-                                setSaveDraft(key);
-                                setSaveName(`${label} · ${parseKey(viewKey).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })}`);
-                              }}
-                              className="w-full flex items-center justify-center gap-2 py-2.5 text-sm font-semibold"
-                              style={{ borderTop: `1px solid ${C.line}`, color: C.gold }}
-                            >
-                              <Icon name="copy" size={14} /> Enregistrer ce repas
-                            </button>
-                          ))}
+                          </div>
+                        ) : (
+                          <button onClick={() => { setSaveDraft(key); setSaveName(`${label} · ${parseKey(viewKey).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })}`); }} className="w-full flex items-center justify-center gap-2 py-2.5 text-sm font-semibold" style={{ borderTop: `1px solid ${C.line}`, color: C.gold }}>
+                            <Icon name="copy" size={14} /> Enregistrer ce repas
+                          </button>
+                        ))}
                       </div>
                     </div>
                   </div>
@@ -352,48 +256,26 @@ WebkitBackdropFilter: 'blur(20px)',
 
             <div className="rounded-2xl p-4 mt-2" style={glassCard}>
               <div className="flex items-center justify-between mb-3">
-                <div className="flex items-center gap-2 font-bold">
-                  <Icon name="drop" size={18} color={C.blue} /> Eau
-                </div>
-                <div className="text-sm tabular-nums" style={{ color: C.dim }}>
-                  {water.toFixed(2)} / {data.targets.water} L
-                </div>
+                <div className="flex items-center gap-2 font-bold"><Icon name="drop" size={18} color={C.blue} /> Eau</div>
+                <div className="text-sm tabular-nums" style={{ color: C.dim }}>{water.toFixed(2)} / {data.targets.water} L</div>
               </div>
               <div className="h-2 rounded-full overflow-hidden mb-3" style={{ background: hexA(C.surf2, 0.7) }}>
-                <div
-                  className="h-full"
-                  style={{ width: `${Math.min(100, (water / data.targets.water) * 100)}%`, background: C.blue }}
-                />
+                <div className="h-full" style={{ width: `${Math.min(100, (water / data.targets.water) * 100)}%`, background: C.blue }} />
               </div>
               <div className="flex gap-2">
-                <button
-                  onClick={() => setDay({ water: Math.max(0, +(water - 0.25).toFixed(2)) })}
-                  className="flex-1 py-2 rounded-xl flex items-center justify-center"
-                  style={{ background: hexA(C.surf2, 0.7) }}
-                >
-                  <Icon name="minus" size={16} />
-                </button>
-                <button
-                  onClick={() => setDay({ water: +(water + 0.25).toFixed(2) })}
-                  className="flex-[2] py-2 rounded-xl font-semibold flex items-center justify-center gap-2"
-                  style={{ background: hexA(C.surf2, 0.7), color: C.blue }}
-                >
-                  <Icon name="plus" size={16} /> +25 cl
-                </button>
+                <button onClick={() => setDay({ water: Math.max(0, +(water - 0.25).toFixed(2)) })} className="flex-1 py-2 rounded-xl flex items-center justify-center" style={{ background: hexA(C.surf2, 0.7) }}><Icon name="minus" size={16} /></button>
+                <button onClick={() => setDay({ water: +(water + 0.25).toFixed(2) })} className="flex-[2] py-2 rounded-xl font-semibold flex items-center justify-center gap-2" style={{ background: hexA(C.surf2, 0.7), color: C.blue }}><Icon name="plus" size={16} /> +25 cl</button>
               </div>
             </div>
 
             {picker && (
               <FoodPicker
                 mealLabel={MEALS.find((m) => m[0] === picker)![1]}
-                foods={allFoods}
-                combos={data.combos || []}
+                foods={allFoods} combos={data.combos || []}
                 onClose={() => setPicker(null)}
                 onAddCustom={(f: Food) => update({ customFoods: [...(data.customFoods || []), f] })}
                 onPick={(f, q) => {
-                  if (!allFoods.find((x) => x.id === f.id)) {
-                    update({ customFoods: [...(data.customFoods || []), { id: f.id, name: f.name, unit: f.unit, kcal: f.kcal, p: f.p, c: f.c, f: f.f }] });
-                  }
+                  if (!allFoods.find((x) => x.id === f.id)) update({ customFoods: [...(data.customFoods || []), { id: f.id, name: f.name, unit: f.unit, kcal: f.kcal, p: f.p, c: f.c, f: f.f }] });
                   addToMeal(picker, { id: f.id, qty: q });
                   setPicker(null);
                 }}

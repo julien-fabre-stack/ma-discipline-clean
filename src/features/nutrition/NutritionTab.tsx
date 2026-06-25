@@ -19,7 +19,7 @@ export interface NutritionTabProps {
 const EMPTY_MEALS: Meals = { petitdej: [], dej: [], diner: [], snack: [] };
 
 export function NutritionTab({ data, update, today, openSettings }: NutritionTabProps) {
-  const { C, dawn, cardShadow, glowShadow } = useTheme();
+  const { C, dawn, hexA, cardShadow, glowShadow } = useTheme();
   const askConfirm = useConfirm();
   const [view, setView] = useState<'journal' | 'rapports'>('journal');
   const [viewKey, setViewKey] = useState(today);
@@ -104,7 +104,13 @@ export function NutritionTab({ data, update, today, openSettings }: NutritionTab
     <div className="px-5 pb-28">
       <div
   className="sticky z-20 pb-3 -mx-5 px-5"
-  style={{ top: 0, paddingTop: 'calc(env(safe-area-inset-top) + 20px)', background: C.night }}
+  style={{
+    top: 0,
+    paddingTop: 'calc(env(safe-area-inset-top) + 20px)',
+    background: hexA(C.night, 0.75),
+    backdropFilter: 'blur(20px)',
+    WebkitBackdropFilter: 'blur(20px)',
+  }}
 >
 
         <div className="flex items-start justify-between mb-3">

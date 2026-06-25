@@ -14,13 +14,8 @@ export interface SeanceTabProps {
 }
 
 const WEEKDAYS: [string, number][] = [
-  ['Lundi', 1],
-  ['Mardi', 2],
-  ['Mercredi', 3],
-  ['Jeudi', 4],
-  ['Vendredi', 5],
-  ['Samedi', 6],
-  ['Dimanche', 0],
+  ['Lundi', 1], ['Mardi', 2], ['Mercredi', 3], ['Jeudi', 4],
+  ['Vendredi', 5], ['Samedi', 6], ['Dimanche', 0],
 ];
 
 export function SeanceTab({ data, openRunner, openWod, openSettings, markSport }: SeanceTabProps) {
@@ -34,9 +29,7 @@ export function SeanceTab({ data, openRunner, openWod, openSettings, markSport }
   const todayWd = new Date().getDay();
   const namesOf = (v: string | string[] | undefined) => {
     const ids = Array.isArray(v) ? v : v ? [v] : [];
-    const ns = ids
-      .map((id) => workouts.find((x) => x.id === id)?.name)
-      .filter((n): n is string => Boolean(n));
+    const ns = ids.map((id) => workouts.find((x) => x.id === id)?.name).filter((n): n is string => Boolean(n));
     return ns.length ? ns.join(' + ') : null;
   };
   const day = data.days[today] || {};
@@ -45,45 +38,45 @@ export function SeanceTab({ data, openRunner, openWod, openSettings, markSport }
 
   const glassCard = {
     background: hexA(C.surf, 0.45),
-    backdropFilter: 'blur(16px)',
-    WebkitBackdropFilter: 'blur(16px)',
+    backdropFilter: 'blur(12px)',
+    WebkitBackdropFilter: 'blur(12px)',
     border: `1px solid ${C.line}`,
     boxShadow: cardShadow(),
   } as const;
 
   return (
-    <div className="pb-28">
-      {/* Header fixe transparent sur le wallpaper */}
+    <div
+      className="flex flex-col"
+      style={{ height: 'calc(100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 64px)' }}
+    >
+      {/* Header fixe dans le flux — même pattern que SuiviTab */}
       <div
-        className="fixed left-0 right-0 z-20 px-5 pb-3"
-        style={{
-          top: 0,
-          paddingTop: 'calc(env(safe-area-inset-top) + 20px)',
-          background: 'rgba(0,0,0,0.25)',
-backdropFilter: 'blur(20px)',
-WebkitBackdropFilter: 'blur(20px)',
-        }}
+        className="flex-shrink-0 px-5 pb-3"
+        style={{ paddingTop: 'calc(env(safe-area-inset-top) + 20px)' }}
       >
-        <div className="flex items-start justify-between">
+        <div className="flex items-start justify-between mb-1">
           <div>
             <div className="text-xs tracking-widest uppercase mb-1" style={{ color: C.dim }}>
               {new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' })}
             </div>
-            <h1 className="text-3xl font-extrabold tracking-tight mb-1">{headTitle}</h1>
-            <div className="text-sm" style={{ color: C.gold }}>
+            <h1 className="text-3xl font-extrabold tracking-tight">{headTitle}</h1>
+            <div className="text-sm mt-1" style={{ color: C.gold }}>
               {cycleLabelFor(data, today)}
             </div>
           </div>
-          <button onClick={openSettings} className="p-2 rounded-full" style={{ background: hexA(C.surf, 0.6) }}>
+          <button onClick={openSettings} className="p-2 rounded-full" style={{ background: C.surf }}>
             <Icon name="gear" size={20} color={C.dim} />
           </button>
         </div>
       </div>
 
-      {/* Spacer pour compenser le header fixed */}
-      <div style={{ height: 'calc(env(safe-area-inset-top) + 120px)' }} />
+      {/* Zone scrollable */}
+      <div
+        className="flex-1 overflow-y-auto px-5 pb-6"
+        style={{ borderTop: `1px solid ${C.line}` }}
+      >
+        <div className="pt-4" />
 
-      <div className="px-5">
         {todayWorkouts.length ? (
           todayWorkouts.map((w) => {
             const hasProg = progWid === w.id;
@@ -91,8 +84,7 @@ WebkitBackdropFilter: 'blur(20px)',
               <div key={w.id} className="rounded-3xl p-5 mb-4" style={glassCard}>
                 <div className="font-bold mb-1">{w.name}</div>
                 <div className="text-sm mb-4" style={{ color: C.dim }}>
-                  {(w.items || []).length} exercices · minuteurs auto.
-                  {hasProg && ' Séance en cours.'}
+                  {(w.items || []).length} exercices · minuteurs auto.{hasProg && ' Séance en cours.'}
                 </div>
                 <div className="flex gap-2">
                   {hasProg && (
@@ -117,9 +109,7 @@ WebkitBackdropFilter: 'blur(20px)',
           })
         ) : (
           <div className="rounded-3xl p-5 mb-4 text-center" style={glassCard}>
-            <div className="text-sm" style={{ color: C.dim }}>
-              Pas de séance prévue aujourd'hui. Profite du repos.
-            </div>
+            <div className="text-sm" style={{ color: C.dim }}>Pas de séance prévue aujourd'hui. Profite du repos.</div>
           </div>
         )}
 
@@ -131,9 +121,7 @@ WebkitBackdropFilter: 'blur(20px)',
             Échauffement 10 burpees + 10 remises debout, puis le WOD choisi.
           </div>
           {(data.wods || []).length === 0 ? (
-            <div className="text-sm" style={{ color: C.gold }}>
-              Ajoute tes WODs dans Réglages → WOD.
-            </div>
+            <div className="text-sm" style={{ color: C.gold }}>Ajoute tes WODs dans Réglages → WOD.</div>
           ) : (
             (data.wods || []).map((w) => (
               <button

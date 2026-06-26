@@ -1,4 +1,4 @@
-import type { AppData, WorkoutItem } from '@/types';
+import type { AppData, Exercise } from '@/types';
 import type { DayTotals, Macros } from '@/lib/nutrition';
 import { parseKey, addDays, dateKey } from '@/lib/utils';
 import { dayType, workoutsForDay } from '@/lib/workouts';
@@ -70,7 +70,7 @@ export function exportNutritionPDF(
 
 interface WorkoutRef {
   name: string;
-  items: WorkoutItem[];
+  items: Exercise[];
   fixedDuration?: string;
 }
 
@@ -139,7 +139,8 @@ export function exportForClaude(data: AppData, startKey: string, endKey: string)
   const avgP = loggedCount ? Math.round(totalP / loggedCount) : 0;
   const avgC = loggedCount ? Math.round(totalC / loggedCount) : 0;
   const avgF = loggedCount ? Math.round(totalF / loggedCount) : 0;
-  const habitAvg = habitMax ? `${Math.round((habitTotal / days.filter(k => k <= today).length) * 10) / 10}/${data.habits?.length || 0}` : '-';
+  const activeDays = days.filter((k) => k <= today).length;
+  const habitAvg = activeDays ? `${Math.round((habitTotal / activeDays) * 10) / 10}/${data.habits?.length || 0}` : '-';
 
   const startLabel = parseKey(startKey).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' });
   const endLabel = parseKey(endKey).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' });
@@ -147,7 +148,7 @@ export function exportForClaude(data: AppData, startKey: string, endKey: string)
   const annexLines: string[] = [];
   for (const [, w] of workoutRefs) {
     let wLine = `\n${w.name}${w.fixedDuration ? ` (${w.fixedDuration})` : ''}`;
-    const exercises = w.items.map((it) => (it as { name?: string; block?: string }).name || (it as { name?: string; block?: string }).block).filter(Boolean).join(', ');
+    const exercises = w.items.map((it) => it.name).filter(Boolean).join(', ');
     if (exercises) wLine += `\n→ ${exercises}`;
     annexLines.push(wLine);
   }
@@ -162,7 +163,7 @@ ${dayLines.join('\n')}
 === MOYENNES SUR LA PÉRIODE ===
 Calories moy (jours renseignés) : ${avgKcal} kcal
 Protéines moy : ${avgP}g | Glucides moy : ${avgC}g | Lipides moy : ${avgF}g
-Sport : ${sportCount}/${days.filter((k) => k <= today).length} jours
+Sport : ${sportCount}/${activeDays} jours
 Habitudes moy : ${habitAvg}
 ${annexLines.length ? `\n=== ANNEXE — CONTENU DES WORKOUTS ===${annexLines.join('\n')}` : ''}
 

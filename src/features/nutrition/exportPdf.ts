@@ -157,7 +157,7 @@ export function exportForClaude(data: AppData, startKey: string, endKey: string)
 Opérateur : ${name}
 Période : ${startLabel} → ${endLabel}
 Objectifs : ${goals || 'non renseignés'}
-Objectifs caloriques : séance ${targets.train || 2400} kcal | repos ${targets.rest || 1800} kcal | récup ${targets.recup || 2100} kcal
+Objectifs caloriques : séance ${targets.train || 2400} kcal | repos ${targets.repos || 1800} kcal | récup ${targets.recup || 2100} kcal
 ${dayLines.join('\n')}
 
 === MOYENNES SUR LA PÉRIODE ===

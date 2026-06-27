@@ -235,6 +235,9 @@ export function SuiviTab({ data, update, today, openSettings }: SuiviTabProps) {
             const cycColor = sport === 'actif' ? C.ok : sport === 'off' ? '#46405C' : 'transparent';
             const bg = wknd ? C.surf2 : st ? st.color : C.night;
             const txt = !wknd && st ? '#1A1206' : isToday ? C.gold : k < today ? C.text : C.dim;
+            const dayData = data.days[k] || {};
+            const dayTodos: { done: boolean }[] = dayData.todos || [];
+            const hasOpenTodos = dayTodos.some((t) => !t.done);
             return (
               <button
                 key={k}
@@ -261,6 +264,7 @@ export function SuiviTab({ data, update, today, openSettings }: SuiviTabProps) {
                   {evts.slice(0, 2).map((e) => (
                     <span key={e.id} className="w-1.5 h-1.5 rounded-full" style={{ background: e.color || '#FFC24B' }} />
                   ))}
+                  {hasOpenTodos && <span style={{ fontSize: 7, lineHeight: 1 }}>❗</span>}
                 </span>
                 <span className="flex items-stretch flex-shrink-0 self-stretch" style={{ gap: 2, paddingRight: 2 }}>
                   {activities.map((a) => (
@@ -281,4 +285,3 @@ export function SuiviTab({ data, update, today, openSettings }: SuiviTabProps) {
     </div>
   );
 }
-

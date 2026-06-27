@@ -73,7 +73,10 @@ export function FoodPicker({
 
   return (
     <div className="fixed inset-0 z-50 flex flex-col" style={{ background: C.night, color: C.text }}>
-      <div className="flex items-center justify-between px-5 pt-5 pb-3">
+      <div
+        className="flex items-center justify-between px-5 pb-3"
+        style={{ paddingTop: 'calc(env(safe-area-inset-top) + 20px)' }}
+      >
         <div className="font-bold">Ajouter · {mealLabel}</div>
         <button onClick={onClose} className="p-2 rounded-full" style={{ background: C.surf }}>
           <Icon name="x" size={20} color={C.dim} />

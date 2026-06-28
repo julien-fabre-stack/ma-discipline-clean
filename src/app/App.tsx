@@ -55,6 +55,8 @@ function AuthedApp({
  uid,
  online,
  pendingWrites,
+ archiveError,
+ localCacheError,
  onLogout,
 }: {
  data: AppData;
@@ -62,6 +64,8 @@ function AuthedApp({
  uid: string;
  online: boolean;
  pendingWrites: boolean;
+ archiveError: string | null;
+ localCacheError: boolean;
  onLogout: () => void;
 }) {
  const { C, dawn, hexA, glowShadow, tabTransition } = useTheme();
@@ -124,6 +128,46 @@ function AuthedApp({
        >
          <span className="w-2 h-2 rounded-full" style={{ background: C.gold }} />
          {pendingWrites ? 'Hors ligne · sync en attente' : 'Hors ligne'}
+       </div>
+     )}
+
+     {archiveError && (
+       <div
+         className="fixed z-40 px-3 py-2 rounded-xl text-[11px] font-semibold"
+         style={{
+           left: '50%',
+           top: 'calc(env(safe-area-inset-top) + 48px)',
+           transform: 'translateX(-50%)',
+           background: hexA(C.surf, 0.92),
+           backdropFilter: 'blur(16px)',
+           WebkitBackdropFilter: 'blur(16px)',
+           border: `1px solid ${hexA(C.ember, 0.5)}`,
+           color: C.ember,
+           whiteSpace: 'nowrap',
+         }}
+       >
+         ⚠️ Archivage échoué ({archiveError}) · Données Firestore intactes
+       </div>
+     )}
+
+     {localCacheError && (
+       <div
+         className="fixed z-40 px-3 py-2 rounded-xl text-[11px] font-semibold"
+         style={{
+           left: '50%',
+           top: archiveError
+             ? 'calc(env(safe-area-inset-top) + 86px)'
+             : 'calc(env(safe-area-inset-top) + 48px)',
+           transform: 'translateX(-50%)',
+           background: hexA(C.surf, 0.92),
+           backdropFilter: 'blur(16px)',
+           WebkitBackdropFilter: 'blur(16px)',
+           border: `1px solid ${hexA(C.gold, 0.4)}`,
+           color: C.gold,
+           whiteSpace: 'nowrap',
+         }}
+       >
+         ⚠️ Cache local plein · Mode hors-ligne limité
        </div>
      )}
 
@@ -297,6 +341,8 @@ export function App() {
          update={appData.update}
          online={online}
          pendingWrites={appData.pendingWrites}
+         archiveError={appData.archiveError}
+         localCacheError={appData.localCacheError}
          onLogout={() => auth && signOut(auth)}
        />
      </ConfirmProvider>
@@ -311,6 +357,8 @@ function AppGate({
  update,
  online,
  pendingWrites,
+ archiveError,
+ localCacheError,
  onLogout,
 }: {
  authReady: boolean;
@@ -319,6 +367,8 @@ function AppGate({
  update: (patch: Partial<AppData>) => void;
  online: boolean;
  pendingWrites: boolean;
+ archiveError: string | null;
+ localCacheError: boolean;
  onLogout: () => void;
 }) {
  const { C } = useTheme();
@@ -360,6 +410,8 @@ function AppGate({
      uid={user.uid}
      online={online}
      pendingWrites={pendingWrites}
+     archiveError={archiveError}
+     localCacheError={localCacheError}
      onLogout={onLogout}
    />
  );

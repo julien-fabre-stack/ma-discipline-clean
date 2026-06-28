@@ -14,6 +14,8 @@ export interface UseAppDataResult {
   data: AppData | null;
   update: (patch: Partial<AppData>) => void;
   pendingWrites: boolean;
+  archiveError: string | null;       // mois échoués à archiver, null si aucun
+  localCacheError: boolean;          // true si localStorage a dépassé son quota
 }
 
 const SAVE_DEBOUNCE_MS = 400;
@@ -28,13 +30,27 @@ function loadLocal(uid: string): AppData | null {
   } catch { return null; }
 }
 
-function saveLocal(uid: string, data: AppData) {
-  try { localStorage.setItem(localKey(uid), JSON.stringify(data)); } catch {}
+/**
+ * Tente d'écrire dans localStorage.
+ * Retourne false si le quota est dépassé (QuotaExceededError) ou en cas
+ * d'autre erreur, true si la sauvegarde a réussi.
+ */
+function saveLocal(uid: string, data: AppData): boolean {
+  try {
+    localStorage.setItem(localKey(uid), JSON.stringify(data));
+    return true;
+  } catch (e) {
+    // QuotaExceededError sur iOS/Safari quand le stockage est plein.
+    console.warn('localStorage plein ou indisponible :', e);
+    return false;
+  }
 }
 
 export function useAppData(uid: string | null): UseAppDataResult {
   const [data, setData] = useState<AppData | null>(null);
   const [pendingWrites, setPendingWrites] = useState(false);
+  const [archiveError, setArchiveError] = useState<string | null>(null);
+  const [localCacheError, setLocalCacheError] = useState(false);
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const docRef = useRef<DocumentReference | null>(null);
   // pendingVersion : nombre d'écritures locales en attente de persistance.
@@ -79,7 +95,10 @@ export function useAppData(uid: string | null): UseAppDataResult {
         if (changed) {
           const next: AppData = { ...base, days: kept };
           setData(next);
-          saveLocal(uid, next);
+
+          // Sauvegarde locale — si le quota est dépassé, on le signale.
+          const ok = saveLocal(uid, next);
+          if (!ok) setLocalCacheError(true);
 
           const byMonth: Record<string, Record<string, unknown>> = {};
           Object.keys(removed).forEach((k) => {
@@ -94,7 +113,9 @@ export function useAppData(uid: string | null): UseAppDataResult {
                   if (retries > 0) {
                     setTimeout(() => attempt(retries - 1), 5000);
                   } else {
+                    // Échec définitif : on remonte l'erreur à l'UI via state.
                     console.warn('Archivage échoué définitivement pour', m, e);
+                    setArchiveError(m);
                   }
                 });
               attempt(2);
@@ -109,7 +130,8 @@ export function useAppData(uid: string | null): UseAppDataResult {
           }, SAVE_DEBOUNCE_MS);
         } else {
           setData(base);
-          saveLocal(uid, base);
+          const ok = saveLocal(uid, base);
+          if (!ok) setLocalCacheError(true);
         }
       },
       (err) => {
@@ -129,7 +151,10 @@ export function useAppData(uid: string | null): UseAppDataResult {
     setData((prev) => {
       if (!prev) return prev;
       const next = { ...prev, ...patch };
-      if (uid) saveLocal(uid, next);
+      if (uid) {
+        const ok = saveLocal(uid, next);
+        if (!ok) setLocalCacheError(true);
+      }
       if (docRef.current) {
         if (saveTimer.current) clearTimeout(saveTimer.current);
         const ref = docRef.current;
@@ -143,5 +168,5 @@ export function useAppData(uid: string | null): UseAppDataResult {
     });
   }, [uid]);
 
-  return { data, update, pendingWrites };
+  return { data, update, pendingWrites, archiveError, localCacheError };
 }

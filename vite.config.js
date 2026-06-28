@@ -17,5 +17,24 @@ export default defineConfig({
     build: {
         outDir: 'dist',
         sourcemap: true,
+        rollupOptions: {
+            output: {
+                // Séparation des dépendances tierces en chunks stables.
+                // - react-vendor : React + ReactDOM, change rarement -> bon cache navigateur
+                // - firebase     : SDK Firebase (auth + firestore), gros et stable
+                // Les onglets eux-mêmes sont déjà découpés via React.lazy() dans App.tsx,
+                // donc Vite génère un chunk distinct par feature chargée à la demande.
+                manualChunks: function (id) {
+                    if (id.includes('node_modules')) {
+                        if (id.includes('react-dom') || id.includes('react/') || id.includes('scheduler')) {
+                            return 'react-vendor';
+                        }
+                        if (id.includes('firebase') || id.includes('@firebase')) {
+                            return 'firebase';
+                        }
+                    }
+                },
+            },
+        },
     },
 });

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { lazy, Suspense, useEffect, useMemo, useState } from 'react';
 import { onAuthStateChanged, signOut, type User } from 'firebase/auth';
 import { auth, firebaseReady } from '@/lib/firebase';
 import { useAppData } from '@/lib/useAppData';
@@ -10,15 +10,29 @@ import { ConfirmProvider, Icon } from '@/shared/ui';
 import { BackgroundDecor } from '@/shared/ui/BackgroundDecor';
 import type { AppData } from '@/types';
 import { Login } from '@/features/auth/Login';
+// Séance et Suivi sont chargés directement (Séance = onglet par défaut au démarrage).
 import { SeanceTab } from '@/features/seance/SeanceTab';
-import { Runner } from '@/features/seance/Runner';
-import { WodRunner } from '@/features/seance/WodRunner';
-import { NutritionTab } from '@/features/nutrition/NutritionTab';
 import { SuiviTab } from '@/features/suivi/SuiviTab';
-import { Settings } from '@/features/settings/Settings';
-import { JournalTab } from '@/features/journal/JournalTab';
 import { JournalSessionProvider } from '@/features/journal/JournalSession';
 import type { Wod } from '@/types';
+
+// Onglets et écrans lourds chargés à la demande (code-splitting).
+// Chaque import() devient un chunk séparé, téléchargé seulement à l'ouverture.
+const NutritionTab = lazy(() =>
+  import('@/features/nutrition/NutritionTab').then((m) => ({ default: m.NutritionTab }))
+);
+const JournalTab = lazy(() =>
+  import('@/features/journal/JournalTab').then((m) => ({ default: m.JournalTab }))
+);
+const Settings = lazy(() =>
+  import('@/features/settings/Settings').then((m) => ({ default: m.Settings }))
+);
+const Runner = lazy(() =>
+  import('@/features/seance/Runner').then((m) => ({ default: m.Runner }))
+);
+const WodRunner = lazy(() =>
+  import('@/features/seance/WodRunner').then((m) => ({ default: m.WodRunner }))
+);
 
 type TabKey = 'seance' | 'nutrition' | 'suivi' | 'journal';
 
@@ -28,6 +42,12 @@ const TABS: [TabKey, string, 'dumbbell' | 'apple' | 'calendar' | 'edit'][] = [
  ['suivi', 'Suivi', 'calendar'],
  ['journal', 'Journal', 'edit'],
 ];
+
+// Fallback affiché pendant le chargement d'un chunk lazy (très bref).
+// Transparent pour ne pas faire flasher le fond ; le wallpaper reste visible.
+function TabFallback() {
+  return <div style={{ minHeight: '50vh' }} />;
+}
 
 function AuthedApp({
  data,
@@ -121,12 +141,14 @@ function AuthedApp({
 
      {tab === 'nutrition' && (
        <div key="nutrition" className={tabClass}>
-         <NutritionTab
-           data={data}
-           update={update}
-           today={today}
-           openSettings={() => setSettingsOpen(true)}
-         />
+         <Suspense fallback={<TabFallback />}>
+           <NutritionTab
+             data={data}
+             update={update}
+             today={today}
+             openSettings={() => setSettingsOpen(true)}
+           />
+         </Suspense>
        </div>
      )}
 
@@ -143,53 +165,61 @@ function AuthedApp({
 
      {tab === 'journal' && (
        <div key="journal" className={tabClass}>
-         <JournalTab
-           update={update}
-           uid={uid}
-           today={today}
-           openSettings={() => setSettingsOpen(true)}
-         />
+         <Suspense fallback={<TabFallback />}>
+           <JournalTab
+             update={update}
+             uid={uid}
+             today={today}
+             openSettings={() => setSettingsOpen(true)}
+           />
+         </Suspense>
        </div>
      )}
 
      {runner !== null && (
-       <Runner
-         steps={steps}
-         startIdx={runner.idx}
-         data={data}
-         onProgress={(idx) => update({ progress: { wid: runner.wid, idx } })}
-         onClose={() => setRunner(null)}
-         onDone={() => {
-           update({ progress: null });
-           markSport();
-           setRunner(null);
-         }}
-       />
+       <Suspense fallback={null}>
+         <Runner
+           steps={steps}
+           startIdx={runner.idx}
+           data={data}
+           onProgress={(idx) => update({ progress: { wid: runner.wid, idx } })}
+           onClose={() => setRunner(null)}
+           onDone={() => {
+             update({ progress: null });
+             markSport();
+             setRunner(null);
+           }}
+         />
+       </Suspense>
      )}
 
      {wod && (
-       <WodRunner
-         wod={wod}
-         onClose={() => setWod(null)}
-         onDone={() => {
-           markSport();
-           setWod(null);
-         }}
-       />
+       <Suspense fallback={null}>
+         <WodRunner
+           wod={wod}
+           onClose={() => setWod(null)}
+           onDone={() => {
+             markSport();
+             setWod(null);
+           }}
+         />
+       </Suspense>
      )}
 
      {settingsOpen && (
-       <Settings
-         data={data}
-         update={update}
-         online={online}
-         pendingWrites={pendingWrites}
-         onClose={() => setSettingsOpen(false)}
-         onLogout={() => {
-           onLogout();
-           setSettingsOpen(false);
-         }}
-       />
+       <Suspense fallback={null}>
+         <Settings
+           data={data}
+           update={update}
+           online={online}
+           pendingWrites={pendingWrites}
+           onClose={() => setSettingsOpen(false)}
+           onLogout={() => {
+             onLogout();
+             setSettingsOpen(false);
+           }}
+         />
+       </Suspense>
      )}
      </div>
 

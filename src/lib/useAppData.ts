@@ -37,10 +37,9 @@ export function useAppData(uid: string | null): UseAppDataResult {
   const [pendingWrites, setPendingWrites] = useState(false);
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const docRef = useRef<DocumentReference | null>(null);
-  // Compteur de version locale : incrémenté à chaque update() appelé par l'UI.
-  // Permet d'ignorer les snapshots Firestore qui arrivent PENDANT un debounce
-  // en attente (évite la race condition snapshot ↔ modification locale).
-  const localVersion = useRef(0);
+  // pendingVersion : nombre d'écritures locales en attente de persistance.
+  // Permet d'ignorer les snapshots cache qui arriveraient PENDANT un debounce
+  // (évite la race condition snapshot ↔ modification locale).
   const pendingVersion = useRef(0);
 
   useEffect(() => {
@@ -127,7 +126,6 @@ export function useAppData(uid: string | null): UseAppDataResult {
   }, [uid]);
 
   const update = useCallback((patch: Partial<AppData>) => {
-    localVersion.current++;
     setData((prev) => {
       if (!prev) return prev;
       const next = { ...prev, ...patch };

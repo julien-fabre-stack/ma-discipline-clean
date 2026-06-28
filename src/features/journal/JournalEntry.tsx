@@ -209,7 +209,6 @@ export function JournalEntry({ dayKey, doc, onSave, onDelete, onBack }: JournalE
               onChange={(e) => {
                 setBody(e.target.value);
                 setDirty(true);
-                scrollToBottom();
               }}
               onFocus={scrollToBottom}
               placeholder="Écris ici…"

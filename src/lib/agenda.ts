@@ -24,13 +24,21 @@ export function eventsOf(agenda: Agenda, k: string): AgendaEvent[] {
     .sort((a, b) => ((a.time || '') < (b.time || '') ? -1 : 1));
 }
 
-/** Proportion d'habitudes cochées pour un jour (0 à 1). */
+/**
+ * Proportion d'habitudes cochées pour un jour (0 à 1).
+ * On ne compte QUE les habitudes actuellement définies dans data.habits :
+ * une habitude supprimée mais encore cochée dans un vieux jour ne doit pas
+ * gonfler le ratio (sinon le ratio pouvait dépasser 1 et marquer à tort
+ * une journée comme "parfaite").
+ */
 export function ratioOfDay(data: AppData, k: string): number {
   const habits = data.habits || DEFAULT_HABITS;
   const hl = habits.length || 1;
   const ddd = data.days[k];
   if (!ddd || !ddd.habits || Array.isArray(ddd.habits)) return 0;
-  return Object.values(ddd.habits).filter(Boolean).length / hl;
+  const dh = ddd.habits;
+  const done = habits.reduce((n, h) => n + (dh[h.id] ? 1 : 0), 0);
+  return done / hl;
 }
 
 export function cycleStatusOf(agenda: Agenda, k: string): string | null {

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import type { AppData, AgendaEvent } from '@/types';
 import { DEFAULT_HABITS, RDV_COLORS } from '@/lib/defaults';
 import { activitiesOf, eventsOf, statusOf } from '@/lib/agenda';
@@ -27,13 +27,36 @@ export function DayPanel({ data, update, dayKey }: DayPanelProps) {
   const rdvTypes = agenda.rdvTypes || [];
   const day = data.days[dayKey] || {};
   const todos = day.todos || [];
-  const note = day.note || '';
   const habits = data.habits || DEFAULT_HABITS;
   const dh = day.habits && !Array.isArray(day.habits) ? day.habits : {};
   const [newTodo, setNewTodo] = useState('');
   const [evtDraft, setEvtDraft] = useState<EventDraft | null>(null);
   const [open, setOpen] = useState({ habits: false, rdv: false, todo: false, note: false });
   const toggle = (k: keyof typeof open) => setOpen((o) => ({ ...o, [k]: !o[k] }));
+
+  // État local pour la note — découple la frappe du cycle re-render global
+  const [localNote, setLocalNote] = useState(day.note || '');
+  const noteDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const prevDayKeyRef = useRef(dayKey);
+
+  // Quand on change de jour : sync immédiate de localNote depuis les données
+  useEffect(() => {
+    if (dayKey !== prevDayKeyRef.current) {
+      prevDayKeyRef.current = dayKey;
+      if (noteDebounceRef.current) clearTimeout(noteDebounceRef.current);
+      setLocalNote(day.note || '');
+    }
+  }, [dayKey, day.note]);
+
+  const handleNoteChange = (val: string) => {
+    setLocalNote(val);
+    if (noteDebounceRef.current) clearTimeout(noteDebounceRef.current);
+    noteDebounceRef.current = setTimeout(() => {
+      const d = { ...(data.days || {}) };
+      d[dayKey] = { ...(data.days[dayKey] || {}), note: val };
+      update({ days: d });
+    }, 600);
+  };
 
   const st = statusOf(agenda, dayKey);
   const acts = activitiesOf(agenda, dayKey);
@@ -308,10 +331,10 @@ export function DayPanel({ data, update, dayKey }: DayPanelProps) {
         </div>
       </Collapsible>
 
-      <Collapsible title="Note" badge={note.trim() ? '●' : null} open={open.note} onToggle={() => toggle('note')}>
+      <Collapsible title="Note" badge={localNote.trim() ? '●' : null} open={open.note} onToggle={() => toggle('note')}>
         <textarea
-          value={note}
-          onChange={(e) => setDay({ note: e.target.value })}
+          value={localNote}
+          onChange={(e) => handleNoteChange(e.target.value)}
           rows={3}
           placeholder="Notes du jour…"
           className="w-full px-3 py-2.5 rounded-xl outline-none text-sm mb-1"

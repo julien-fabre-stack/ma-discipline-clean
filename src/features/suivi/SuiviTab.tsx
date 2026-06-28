@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { AppData } from '@/types';
 import { DEFAULT_ACTIVITIES, DEFAULT_RDV_TYPES, DEFAULT_STATUSES } from '@/lib/defaults';
 import { activitiesOf, eventsOf, ratioOfDay, statusOf } from '@/lib/agenda';
@@ -17,6 +17,79 @@ export interface SuiviTabProps {
 
 const ROWH = 38;
 const LANEW = 7;
+
+interface RowData {
+  k: string;
+  label1: string; // ex. "lun."
+  label2: string; // ex. "3 juin"
+  bg: string;
+  txt: string;
+  cycColor: string;
+  perfect: boolean;
+  hasOpenTodos: boolean;
+  isToday: boolean;
+  evtColors: string[]; // jusqu'à 2 pastilles d'événements
+  actColors: string[]; // une entrée par activité globale (couleur ou 'transparent')
+}
+
+/**
+ * Une ligne de la frise. Mémoïsée : ne se re-rend que si ses props primitives
+ * changent réellement (sélection, contenu du jour). Cocher une habitude ou
+ * sélectionner un autre jour ne re-rend donc plus les 60+ lignes, seulement
+ * celles concernées — ce qui élimine les freezes de la frise.
+ */
+const FriseRow = memo(function FriseRow({
+  row,
+  isSel,
+  rowH,
+  laneW,
+  gold,
+  onSelect,
+  rowRef,
+}: {
+  row: RowData;
+  isSel: boolean;
+  rowH: number;
+  laneW: number;
+  gold: string;
+  onSelect: (k: string) => void;
+  rowRef: ((el: HTMLButtonElement | null) => void) | null;
+}) {
+  return (
+    <button
+      ref={rowRef}
+      id={'day-' + row.k}
+      onClick={() => onSelect(row.k)}
+      className="w-full flex items-center gap-1"
+      style={{
+        height: rowH,
+        background: row.bg,
+        outline: isSel ? `2px solid ${gold}` : 'none',
+        outlineOffset: '-2px',
+        borderBottom: `1px solid var(--c-line)`,
+      }}
+    >
+      <span className="flex-shrink-0 self-stretch" style={{ width: laneW, background: row.cycColor }} />
+      <span className="text-[10px] leading-tight text-left flex-1 min-w-0 pl-1.5" style={{ color: row.txt }}>
+        {row.label1}
+        <br />
+        {row.label2}
+      </span>
+      <span className="flex flex-col items-center justify-center gap-0.5 flex-shrink-0" style={{ width: 10 }}>
+        {row.perfect && <span className="w-1.5 h-1.5 rounded-full" style={{ background: 'var(--c-ok)' }} />}
+        {row.evtColors.map((c, i) => (
+          <span key={i} className="w-1.5 h-1.5 rounded-full" style={{ background: c }} />
+        ))}
+        {row.hasOpenTodos && <span style={{ fontSize: 7, lineHeight: 1 }}>❗</span>}
+      </span>
+      <span className="flex items-stretch flex-shrink-0 self-stretch" style={{ gap: 2, paddingRight: 2 }}>
+        {row.actColors.map((c, i) => (
+          <span key={i} style={{ width: laneW, background: c }} />
+        ))}
+      </span>
+    </button>
+  );
+});
 
 export function SuiviTab({ data, update, today, openSettings }: SuiviTabProps) {
   const { C, dawn, glowShadow } = useTheme();
@@ -66,6 +139,49 @@ export function SuiviTab({ data, update, today, openSettings }: SuiviTabProps) {
     for (let k = start; k <= end; k = addDays(k, 1)) ds.push(k);
     return ds;
   }, [today, Y]);
+
+  // Pré-calcul de toutes les données d'affichage de la frise (une passe).
+  // Ne se recalcule que si les données, l'agenda, les jours ou le thème
+  // changent — pas à chaque sélection de jour. Chaque ligne reçoit ensuite
+  // des primitives stables, ce qui permet à React.memo de faire son travail.
+  const rows = useMemo<RowData[]>(() => {
+    return days.map((k) => {
+      const st = statusOf(agenda, k);
+      const perfect = ratioOfDay(data, k) >= 1 && k <= today;
+      const isToday = k === today;
+      const sport = sportStatus(data, k);
+      const evts = eventsOf(agenda, k);
+      const dayActs = activitiesOf(agenda, k);
+      const d = parseKey(k);
+      const wknd = [0, 6].includes(d.getDay());
+      const cycColor = sport === 'actif' ? C.ok : sport === 'off' ? '#46405C' : 'transparent';
+      const bg = wknd ? C.surf2 : st ? st.color : C.night;
+      const txt = !wknd && st ? '#1A1206' : isToday ? C.gold : k < today ? C.text : C.dim;
+      const dayData = data.days[k] || {};
+      const dayTodos: { done: boolean }[] = dayData.todos || [];
+      const hasOpenTodos = dayTodos.some((t) => !t.done);
+      const evtColors = evts.slice(0, 2).map((e) => e.color || '#FFC24B');
+      const actColors = activities.map((a) =>
+        dayActs.some((x) => x.id === a.id) ? a.color : 'transparent'
+      );
+      return {
+        k,
+        label1: d.toLocaleDateString('fr-FR', { weekday: 'short' }) + '.',
+        label2: `${d.getDate()} ${d.toLocaleDateString('fr-FR', { month: 'short' })}`,
+        bg,
+        txt,
+        cycColor,
+        perfect,
+        hasOpenTodos,
+        isToday,
+        evtColors,
+        actColors,
+      };
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [days, data, agenda, activities, today, C]);
+
+  const handleSelectDay = useCallback((k: string) => setSelectedDay(k), []);
   const todayRef = useRef<HTMLButtonElement | null>(null);
   useEffect(() => {
     todayRef.current?.scrollIntoView({ block: 'start' });
@@ -222,61 +338,18 @@ export function SuiviTab({ data, update, today, openSettings }: SuiviTabProps) {
 
       <div className="flex-1 flex overflow-hidden" style={{ borderTop: `1px solid ${C.line}` }}>
         <div className="overflow-y-auto flex-shrink-0" style={{ width: 74 + (activities.length + 1) * (LANEW + 2) + 14 }}>
-          {days.map((k) => {
-            const st = statusOf(agenda, k);
-            const perfect = ratioOfDay(data, k) >= 1 && k <= today;
-            const isToday = k === today;
-            const isSel = k === selectedDay;
-            const sport = sportStatus(data, k);
-            const evts = eventsOf(agenda, k);
-            const dayActs = activitiesOf(agenda, k);
-            const d = parseKey(k);
-            const wknd = [0, 6].includes(d.getDay());
-            const cycColor = sport === 'actif' ? C.ok : sport === 'off' ? '#46405C' : 'transparent';
-            const bg = wknd ? C.surf2 : st ? st.color : C.night;
-            const txt = !wknd && st ? '#1A1206' : isToday ? C.gold : k < today ? C.text : C.dim;
-            const dayData = data.days[k] || {};
-            const dayTodos: { done: boolean }[] = dayData.todos || [];
-            const hasOpenTodos = dayTodos.some((t) => !t.done);
-            return (
-              <button
-                key={k}
-                ref={isToday ? todayRef : null}
-                id={'day-' + k}
-                onClick={() => setSelectedDay(k)}
-                className="w-full flex items-center gap-1"
-                style={{
-                  height: ROWH,
-                  background: bg,
-                  outline: isSel ? `2px solid ${C.gold}` : 'none',
-                  outlineOffset: '-2px',
-                  borderBottom: `1px solid ${C.line}`,
-                }}
-              >
-                <span className="flex-shrink-0 self-stretch" style={{ width: LANEW, background: cycColor }} />
-                <span className="text-[10px] leading-tight text-left flex-1 min-w-0 pl-1.5" style={{ color: txt }}>
-                  {d.toLocaleDateString('fr-FR', { weekday: 'short' })}.
-                  <br />
-                  {d.getDate()} {d.toLocaleDateString('fr-FR', { month: 'short' })}
-                </span>
-                <span className="flex flex-col items-center justify-center gap-0.5 flex-shrink-0" style={{ width: 10 }}>
-                  {perfect && <span className="w-1.5 h-1.5 rounded-full" style={{ background: C.ok }} />}
-                  {evts.slice(0, 2).map((e) => (
-                    <span key={e.id} className="w-1.5 h-1.5 rounded-full" style={{ background: e.color || '#FFC24B' }} />
-                  ))}
-                  {hasOpenTodos && <span style={{ fontSize: 7, lineHeight: 1 }}>❗</span>}
-                </span>
-                <span className="flex items-stretch flex-shrink-0 self-stretch" style={{ gap: 2, paddingRight: 2 }}>
-                  {activities.map((a) => (
-                    <span
-                      key={a.id}
-                      style={{ width: LANEW, background: dayActs.some((x) => x.id === a.id) ? a.color : 'transparent' }}
-                    />
-                  ))}
-                </span>
-              </button>
-            );
-          })}
+          {rows.map((row) => (
+            <FriseRow
+              key={row.k}
+              row={row}
+              isSel={row.k === selectedDay}
+              rowH={ROWH}
+              laneW={LANEW}
+              gold={C.gold}
+              onSelect={handleSelectDay}
+              rowRef={row.isToday ? (el) => { todayRef.current = el; } : null}
+            />
+          ))}
         </div>
         <div className="flex-1 overflow-y-auto px-3 py-3">
           <DayPanel data={data} update={update} dayKey={selectedDay} />

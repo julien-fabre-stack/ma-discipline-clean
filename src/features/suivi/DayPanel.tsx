@@ -34,21 +34,19 @@ export function DayPanel({ data, update, dayKey }: DayPanelProps) {
   const [open, setOpen] = useState({ habits: false, rdv: false, todo: false, note: false });
   const toggle = (k: keyof typeof open) => setOpen((o) => ({ ...o, [k]: !o[k] }));
 
-  // --- Note : état local pur, sauvegarde au blur / fermeture / changement de jour ---
-  // On découple totalement la frappe du cycle de re-render global (Firestore).
-  // La sauvegarde ne part qu'au blur du textarea, à la fermeture du volet ou
-  // quand on quitte le jour. Ça élimine le saut de curseur ET le "retour en
-  // arrière" que provoquait le snapshot Firestore revenant écraser la frappe.
+  // --- Note : état local + debounce long + protection contre les snapshots ---
+  // Le textarea est toujours réactif (état local), la sauvegarde part après
+  // 1500ms d'inactivité. Quand le champ est focusé (isFocusedRef = true),
+  // on ignore les mises à jour externes (snapshots Firestore) pour éviter
+  // que le retour du serveur n'écrase la frappe en cours.
   const [noteText, setNoteText] = useState(day.note || '');
-  const noteDirtyRef = useRef(false);
+  const noteDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const isFocusedRef = useRef(false);
   const dayKeyRef = useRef(dayKey);
   const noteTextRef = useRef(noteText);
   noteTextRef.current = noteText;
 
-  const flushNote = (targetDayKey: string) => {
-    if (!noteDirtyRef.current) return;
-    noteDirtyRef.current = false;
-    const val = noteTextRef.current;
+  const saveNote = (val: string, targetDayKey: string) => {
     const existing = data.days[targetDayKey] || {};
     if ((existing.note || '') === val) return;
     const d = { ...(data.days || {}) };
@@ -56,20 +54,46 @@ export function DayPanel({ data, update, dayKey }: DayPanelProps) {
     update({ days: d });
   };
 
-  // Changement de jour : flush l'ancien, charge le nouveau (avant le render).
+  // Quand on change de jour : annule le debounce en cours, charge la nouvelle note.
   if (dayKey !== dayKeyRef.current) {
-    flushNote(dayKeyRef.current);
+    if (noteDebounceRef.current) {
+      clearTimeout(noteDebounceRef.current);
+      noteDebounceRef.current = null;
+      // Flush immédiat de l'ancien jour avant de changer.
+      saveNote(noteTextRef.current, dayKeyRef.current);
+    }
     dayKeyRef.current = dayKey;
     const fresh = (data.days[dayKey] || {}).note || '';
     setNoteText(fresh);
     noteTextRef.current = fresh;
   }
 
-  // Flush au démontage (changement d'onglet, fermeture du panneau…).
+  // Sync depuis les données externes, SEULEMENT si le champ n'est pas focusé.
+  // Cas : on revient sur ce jour après une synchro Firestore depuis un autre appareil.
+  const externalNote = day.note || '';
   useEffect(() => {
-    return () => flushNote(dayKeyRef.current);
+    if (!isFocusedRef.current) {
+      setNoteText(externalNote);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [externalNote]);
+
+  // Flush au démontage (changement d'onglet, fermeture…).
+  useEffect(() => {
+    return () => {
+      if (noteDebounceRef.current) clearTimeout(noteDebounceRef.current);
+      saveNote(noteTextRef.current, dayKeyRef.current);
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  const handleNoteChange = (val: string) => {
+    setNoteText(val);
+    if (noteDebounceRef.current) clearTimeout(noteDebounceRef.current);
+    noteDebounceRef.current = setTimeout(() => {
+      saveNote(val, dayKeyRef.current);
+    }, 1500);
+  };
 
   const st = statusOf(agenda, dayKey);
   const acts = activitiesOf(agenda, dayKey);
@@ -348,18 +372,18 @@ export function DayPanel({ data, update, dayKey }: DayPanelProps) {
         title="Note"
         badge={noteText.trim() ? '●' : null}
         open={open.note}
-        onToggle={() => {
-          if (open.note) flushNote(dayKey); // sauvegarde à la fermeture du volet
-          toggle('note');
-        }}
+        onToggle={() => toggle('note')}
       >
         <textarea
           value={noteText}
-          onChange={(e) => {
-            setNoteText(e.target.value);
-            noteDirtyRef.current = true;
+          onChange={(e) => handleNoteChange(e.target.value)}
+          onFocus={() => { isFocusedRef.current = true; }}
+          onBlur={() => {
+            isFocusedRef.current = false;
+            // Flush immédiat au blur (sortie du champ).
+            if (noteDebounceRef.current) clearTimeout(noteDebounceRef.current);
+            saveNote(noteTextRef.current, dayKeyRef.current);
           }}
-          onBlur={() => flushNote(dayKey)}
           rows={3}
           placeholder="Notes du jour…"
           className="w-full px-3 py-2.5 rounded-xl outline-none text-sm mb-1"

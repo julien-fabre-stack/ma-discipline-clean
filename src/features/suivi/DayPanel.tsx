@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useRef, useCallback } from 'react';
 import type { AppData, AgendaEvent } from '@/types';
 import { DEFAULT_HABITS, RDV_COLORS } from '@/lib/defaults';
 import { activitiesOf, eventsOf, statusOf } from '@/lib/agenda';
@@ -34,29 +34,36 @@ export function DayPanel({ data, update, dayKey }: DayPanelProps) {
   const [open, setOpen] = useState({ habits: false, rdv: false, todo: false, note: false });
   const toggle = (k: keyof typeof open) => setOpen((o) => ({ ...o, [k]: !o[k] }));
 
-  // État local pour la note — découple la frappe du cycle re-render global
-  const [localNote, setLocalNote] = useState(day.note || '');
+  // Ref pour tracker le dayKey courant et la valeur locale de la note
+  const dayKeyRef = useRef(dayKey);
+  const localNoteRef = useRef(day.note || '');
   const noteDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const prevDayKeyRef = useRef(dayKey);
+  const [, forceRender] = useState(0);
 
-  // Quand on change de jour : sync immédiate de localNote depuis les données
-  useEffect(() => {
-    if (dayKey !== prevDayKeyRef.current) {
-      prevDayKeyRef.current = dayKey;
-      if (noteDebounceRef.current) clearTimeout(noteDebounceRef.current);
-      setLocalNote(day.note || '');
+  // Si le jour change, on reset la note locale immédiatement (pas de useEffect)
+  if (dayKey !== dayKeyRef.current) {
+    dayKeyRef.current = dayKey;
+    localNoteRef.current = (data.days[dayKey] || {}).note || '';
+    if (noteDebounceRef.current) {
+      clearTimeout(noteDebounceRef.current);
+      noteDebounceRef.current = null;
     }
-  }, [dayKey, day.note]);
+  }
 
-  const handleNoteChange = (val: string) => {
-    setLocalNote(val);
+  const handleNoteChange = useCallback((val: string) => {
+    // Mise à jour immédiate de la ref (pas de re-render React ici)
+    localNoteRef.current = val;
+    // Forcer un re-render uniquement pour mettre à jour le textarea
+    forceRender(n => n + 1);
+    // Debounce vers Firestore
     if (noteDebounceRef.current) clearTimeout(noteDebounceRef.current);
     noteDebounceRef.current = setTimeout(() => {
+      const currentDayKey = dayKeyRef.current;
       const d = { ...(data.days || {}) };
-      d[dayKey] = { ...(data.days[dayKey] || {}), note: val };
+      d[currentDayKey] = { ...(data.days[currentDayKey] || {}), note: val };
       update({ days: d });
-    }, 600);
-  };
+    }, 800);
+  }, [data, update]);
 
   const st = statusOf(agenda, dayKey);
   const acts = activitiesOf(agenda, dayKey);
@@ -331,9 +338,9 @@ export function DayPanel({ data, update, dayKey }: DayPanelProps) {
         </div>
       </Collapsible>
 
-      <Collapsible title="Note" badge={localNote.trim() ? '●' : null} open={open.note} onToggle={() => toggle('note')}>
+      <Collapsible title="Note" badge={localNoteRef.current.trim() ? '●' : null} open={open.note} onToggle={() => toggle('note')}>
         <textarea
-          value={localNote}
+          value={localNoteRef.current}
           onChange={(e) => handleNoteChange(e.target.value)}
           rows={3}
           placeholder="Notes du jour…"

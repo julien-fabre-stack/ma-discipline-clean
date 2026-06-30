@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import type { AppData, Combo, Food, NutritionTargets } from '@/types';
+import type { AppDataPatch } from '@/lib/useAppData';
 import { dateKey, normName } from '@/lib/utils';
 import { useTheme } from '@/shared/theme/ThemeProvider';
 import { Collapsible, Icon, useConfirm } from '@/shared/ui';
@@ -7,7 +8,7 @@ import { CustomFood } from '../nutrition/CustomFood';
 
 export interface NutritionSettingsProps {
   data: AppData;
-  update: (patch: Partial<AppData>) => void;
+  update: (patch: AppDataPatch) => void;
 }
 
 function FoodEditRow({
@@ -190,19 +191,20 @@ export function NutritionSettings({ data, update }: NutritionSettingsProps) {
   const [adding, setAdding] = useState(false);
   const [q, setQ] = useState('');
 
-  const setTarget = (k: keyof NutritionTargets, v: number) => update({ targets: { ...targets, [k]: v } });
+  const setTarget = (k: keyof NutritionTargets, v: number) =>
+    update((prev) => ({ targets: { ...prev.targets, [k]: v } }));
   const setFood = (id: string, patch: Partial<Food>) =>
-    update({ customFoods: foods.map((f) => (f.id === id ? { ...f, ...patch } : f)) });
+    update((prev) => ({ customFoods: (prev.customFoods || []).map((f) => (f.id === id ? { ...f, ...patch } : f)) }));
   const delFood = async (f: Food) => {
     const ok = await askConfirm({ title: "Supprimer l'aliment", message: `Supprimer « ${f.name} » de ta bibliothèque ?` });
-    if (ok) update({ customFoods: foods.filter((x) => x.id !== f.id) });
+    if (ok) update((prev) => ({ customFoods: (prev.customFoods || []).filter((x) => x.id !== f.id) }));
   };
   const delCombo = async (id: string, name: string) => {
     const ok = await askConfirm({ title: 'Supprimer le repas', message: `Supprimer le repas enregistré « ${name} » ?` });
-    if (ok) update({ combos: combos.filter((c) => c.id !== id) });
+    if (ok) update((prev) => ({ combos: (prev.combos || []).filter((c) => c.id !== id) }));
   };
   const setCombo = (id: string, patch: Partial<Combo>) =>
-    update({ combos: combos.map((c) => (c.id === id ? { ...c, ...patch } : c)) });
+    update((prev) => ({ combos: (prev.combos || []).map((c) => (c.id === id ? { ...c, ...patch } : c)) }));
 
   const shown = q.trim() ? foods.filter((f) => normName(f.name).includes(normName(q))) : foods;
 
@@ -275,7 +277,7 @@ export function NutritionSettings({ data, update }: NutritionSettingsProps) {
         </div>
         {adding && (
           <div className="mb-3">
-            <CustomFood onCreate={(f) => { update({ customFoods: [...foods, f] }); setAdding(false); }} />
+            <CustomFood onCreate={(f) => { update((prev) => ({ customFoods: [...(prev.customFoods || []), f] })); setAdding(false); }} />
           </div>
         )}
         {foods.length > 6 && (

@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import type { AppData, Combo, Food, MealEntry, MealKey, Meals } from '@/types';
+import type { AppDataPatch } from '@/lib/useAppData';
 import { MEALS } from '@/lib/defaults';
 import { dayType } from '@/lib/workouts';
 import { macrosOf, type Macros } from '@/lib/nutrition';
@@ -11,7 +12,7 @@ import { WeeklyReport } from './WeeklyReport';
 
 export interface NutritionTabProps {
   data: AppData;
-  update: (patch: Partial<AppData>) => void;
+  update: (patch: AppDataPatch) => void;
   today: string;
   openSettings: () => void;
 }
@@ -46,29 +47,64 @@ export function NutritionTab({ data, update, today, openSettings }: NutritionTab
     setOpenMeal(null);
   };
 
-  const setDay = (patch: Partial<{ meals: Meals; water: number }>) => {
-    const d = { ...(data.days || {}) };
-    d[viewKey] = { ...day, meals, water, ...patch };
-    update({ days: d });
-  };
-  const setMeals = (m: Meals) => setDay({ meals: m });
-  const addToMeal = (mk: MealKey, e: MealEntry) => setMeals({ ...meals, [mk]: [...(meals[mk] || []), e] });
-  const changeQty = (mk: MealKey, i: number, q: number) => {
-    const arr = [...meals[mk]];
-    if (q <= 0) arr.splice(i, 1);
-    else arr[i] = { ...arr[i], qty: q };
-    setMeals({ ...meals, [mk]: arr });
-  };
-  const addCombo = (mk: MealKey, combo: Combo) => {
-    const valid = (combo.items || []).filter((it) => allFoods.find((f) => f.id === it.id));
-    if (!valid.length) return;
-    setMeals({ ...meals, [mk]: [...(meals[mk] || []), ...valid.map((it) => ({ id: it.id, qty: it.qty }))] });
-  };
+  // Écritures fonctionnelles : la nouvelle valeur est toujours calculée depuis
+  // prev (état le plus récent). Pour les quantités, on raisonne en DELTA et non
+  // en valeur absolue : taper « + » deux fois vite fait bien +2, même si le
+  // render n'a pas encore rafraîchi la quantité affichée.
+  const patchDay = (mut: (cur: typeof day) => Partial<typeof day>) =>
+    update((prev) => {
+      const cur = prev.days[viewKey] || {};
+      const d = { ...(prev.days || {}) };
+      d[viewKey] = { ...cur, ...mut(cur) };
+      return { days: d };
+    });
+  const addToMeal = (mk: MealKey, e: MealEntry) =>
+    patchDay((cur) => {
+      const m = cur.meals || EMPTY_MEALS;
+      return { meals: { ...m, [mk]: [...(m[mk] || []), e] } };
+    });
+  // delta en unités de l'aliment (g ou portion). Si la quantité tombe à 0 ou
+  // moins, l'aliment est retiré du repas.
+  const bumpQty = (mk: MealKey, i: number, delta: number) =>
+    patchDay((cur) => {
+      const m = cur.meals || EMPTY_MEALS;
+      const arr = [...(m[mk] || [])];
+      const item = arr[i];
+      if (!item) return {};
+      const q = item.qty + delta;
+      if (q <= 0) arr.splice(i, 1);
+      else arr[i] = { ...item, qty: q };
+      return { meals: { ...m, [mk]: arr } };
+    });
+  const removeItem = (mk: MealKey, i: number) =>
+    patchDay((cur) => {
+      const m = cur.meals || EMPTY_MEALS;
+      const arr = [...(m[mk] || [])];
+      arr.splice(i, 1);
+      return { meals: { ...m, [mk]: arr } };
+    });
+  const bumpWater = (delta: number) =>
+    patchDay((cur) => ({ water: Math.max(0, +(((cur.water || 0) + delta)).toFixed(2)) }));
+  const addCombo = (mk: MealKey, combo: Combo) =>
+    update((prev) => {
+      const foods = prev.customFoods || [];
+      const valid = (combo.items || []).filter((it) => foods.find((f) => f.id === it.id));
+      if (!valid.length) return prev;
+      const cur = prev.days[viewKey] || {};
+      const m = cur.meals || EMPTY_MEALS;
+      const d = { ...(prev.days || {}) };
+      d[viewKey] = { ...cur, meals: { ...m, [mk]: [...(m[mk] || []), ...valid.map((it) => ({ id: it.id, qty: it.qty }))] } };
+      return { days: d };
+    });
   const saveCombo = (mk: MealKey) => {
-    const items = (meals[mk] || []).map(({ id, qty }) => ({ id, qty }));
-    if (!items.length) return;
     const name = (saveName || '').trim() || MEALS.find((m) => m[0] === mk)![1];
-    update({ combos: [...(data.combos || []), { id: uid(), name, items }] });
+    update((prev) => {
+      const cur = prev.days[viewKey] || {};
+      const m = cur.meals || EMPTY_MEALS;
+      const items = (m[mk] || []).map(({ id, qty }) => ({ id, qty }));
+      if (!items.length) return prev;
+      return { combos: [...(prev.combos || []), { id: uid(), name, items }] };
+    });
     setSaveDraft(null);
     setSaveName('');
   };
@@ -217,7 +253,7 @@ export function NutritionTab({ data, update, today, openSettings }: NutritionTab
                             <SwipeRow key={e.id ? e.id + '-' + i : i} style={{ borderTop: i > 0 ? `1px solid ${C.line}` : 'none' }}
                               onDelete={async () => {
                                 const ok = await askConfirm({ title: "Supprimer l'aliment", message: `Retirer « ${f.name} » de ce repas ?` });
-                                if (ok) changeQty(key, i, 0);
+                                if (ok) removeItem(key, i);
                                 return ok;
                               }}
                             >
@@ -227,8 +263,8 @@ export function NutritionTab({ data, update, today, openSettings }: NutritionTab
                                   <div className="text-xs" style={{ color: C.ok }}>{e.qty}{f.unit === 'g' ? ' g' : '×'} · <span style={{ color: C.dim }}>{Math.round(m.kcal)} kcal</span></div>
                                 </div>
                                 <div className="flex items-center gap-1.5">
-                                  <button onClick={() => changeQty(key, i, e.qty - (f.unit === 'g' ? 10 : 1))} className="w-7 h-7 rounded-full flex items-center justify-center" style={{ background: hexA(C.surf2, 0.7) }}><Icon name="minus" size={13} /></button>
-                                  <button onClick={() => changeQty(key, i, e.qty + (f.unit === 'g' ? 10 : 1))} className="w-7 h-7 rounded-full flex items-center justify-center" style={{ background: hexA(C.surf2, 0.7) }}><Icon name="plus" size={13} /></button>
+                                  <button onClick={() => bumpQty(key, i, -(f.unit === 'g' ? 10 : 1))} className="w-7 h-7 rounded-full flex items-center justify-center" style={{ background: hexA(C.surf2, 0.7) }}><Icon name="minus" size={13} /></button>
+                                  <button onClick={() => bumpQty(key, i, f.unit === 'g' ? 10 : 1)} className="w-7 h-7 rounded-full flex items-center justify-center" style={{ background: hexA(C.surf2, 0.7) }}><Icon name="plus" size={13} /></button>
                                 </div>
                               </div>
                             </SwipeRow>
@@ -263,8 +299,8 @@ export function NutritionTab({ data, update, today, openSettings }: NutritionTab
                 <div className="h-full" style={{ width: `${Math.min(100, (water / data.targets.water) * 100)}%`, background: C.blue }} />
               </div>
               <div className="flex gap-2">
-                <button onClick={() => setDay({ water: Math.max(0, +(water - 0.25).toFixed(2)) })} className="flex-1 py-2 rounded-xl flex items-center justify-center" style={{ background: hexA(C.surf2, 0.7) }}><Icon name="minus" size={16} /></button>
-                <button onClick={() => setDay({ water: +(water + 0.25).toFixed(2) })} className="flex-[2] py-2 rounded-xl font-semibold flex items-center justify-center gap-2" style={{ background: hexA(C.surf2, 0.7), color: C.blue }}><Icon name="plus" size={16} /> +25 cl</button>
+                <button onClick={() => bumpWater(-0.25)} className="flex-1 py-2 rounded-xl flex items-center justify-center" style={{ background: hexA(C.surf2, 0.7) }}><Icon name="minus" size={16} /></button>
+                <button onClick={() => bumpWater(0.25)} className="flex-[2] py-2 rounded-xl font-semibold flex items-center justify-center gap-2" style={{ background: hexA(C.surf2, 0.7), color: C.blue }}><Icon name="plus" size={16} /> +25 cl</button>
               </div>
             </div>
 
@@ -273,9 +309,9 @@ export function NutritionTab({ data, update, today, openSettings }: NutritionTab
                 mealLabel={MEALS.find((m) => m[0] === picker)![1]}
                 foods={allFoods} combos={data.combos || []}
                 onClose={() => setPicker(null)}
-                onAddCustom={(f: Food) => update({ customFoods: [...(data.customFoods || []), f] })}
+                onAddCustom={(f: Food) => update((prev) => ({ customFoods: [...(prev.customFoods || []), f] }))}
                 onPick={(f, q) => {
-                  if (!allFoods.find((x) => x.id === f.id)) update({ customFoods: [...(data.customFoods || []), { id: f.id, name: f.name, unit: f.unit, kcal: f.kcal, p: f.p, c: f.c, f: f.f }] });
+                  if (!allFoods.find((x) => x.id === f.id)) update((prev) => ({ customFoods: [...(prev.customFoods || []), { id: f.id, name: f.name, unit: f.unit, kcal: f.kcal, p: f.p, c: f.c, f: f.f }] }));
                   addToMeal(picker, { id: f.id, qty: q });
                   setPicker(null);
                 }}

@@ -1,5 +1,6 @@
 import { useRef, useState } from 'react';
 import type { AppData, Profile } from '@/types';
+import type { AppDataPatch } from '@/lib/useAppData';
 import { ageFrom, dateKey } from '@/lib/utils';
 import { resizeImage } from '@/lib/image';
 import { useTheme } from '@/shared/theme/ThemeProvider';
@@ -7,7 +8,7 @@ import { Icon, useConfirm } from '@/shared/ui';
 
 export interface ProfileSettingsProps {
   data: AppData;
-  update: (patch: Partial<AppData>) => void;
+  update: (patch: AppDataPatch) => void;
 }
 
 export function ProfileSettings({ data, update }: ProfileSettingsProps) {
@@ -18,7 +19,8 @@ export function ProfileSettings({ data, update }: ProfileSettingsProps) {
   const importRef = useRef<HTMLInputElement | null>(null);
   const [busy, setBusy] = useState(false);
 
-  const setProfile = (patch: Partial<Profile>) => update({ profile: { ...profile, ...patch } });
+  const setProfile = (patch: Partial<Profile>) =>
+    update((prev) => ({ profile: { ...(prev.profile || profile), ...patch } }));
   const age = ageFrom(profile.birthdate);
 
   const onPhoto = async (file: File | undefined) => {

@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import type { AppData, Workout } from '@/types';
+import type { AppDataPatch } from '@/lib/useAppData';
 import { getWorkouts } from '@/lib/workouts';
 import { uid } from '@/lib/utils';
 import { useTheme } from '@/shared/theme/ThemeProvider';
@@ -9,7 +10,7 @@ import { WodSettings } from './WodSettings';
 
 export interface TrainingSettingsProps {
   data: AppData;
-  update: (patch: Partial<AppData>) => void;
+  update: (patch: AppDataPatch) => void;
 }
 
 const WEEKDAYS: [string, number][] = [
@@ -30,11 +31,11 @@ export function TrainingSettings({ data, update }: TrainingSettingsProps) {
   const [openW, setOpenW] = useState<string | null>(null);
 
   const setWorkout = (id: string, patch: Partial<Workout>) => {
-    update({ workouts: workouts.map((w) => (w.id === id ? { ...w, ...patch } : w)) });
+    update((prev) => ({ workouts: getWorkouts(prev).map((w) => (w.id === id ? { ...w, ...patch } : w)) }));
   };
   const addWorkout = () => {
     const id = uid();
-    update({ workouts: [...workouts, { id, name: 'Nouvelle séance', items: [] }] });
+    update((prev) => ({ workouts: [...getWorkouts(prev), { id, name: 'Nouvelle séance', items: [] }] }));
     setOpenW(id);
   };
   const delWorkout = async (id: string) => {
@@ -50,23 +51,27 @@ export function TrainingSettings({ data, update }: TrainingSettingsProps) {
     }
     const ok = await askConfirm({ title: 'Supprimer la séance', message: `Supprimer « ${w ? w.name : ''} » ?` });
     if (!ok) return;
-    const nwt = { ...wt };
-    Object.keys(nwt).forEach((k) => {
-      const arr = (nwt[+k] || []).filter((x) => x !== id);
-      if (arr.length) nwt[+k] = arr;
-      else delete nwt[+k];
+    update((prev) => {
+      const nwt = { ...(prev.weekTemplate || {}) };
+      Object.keys(nwt).forEach((k) => {
+        const arr = (nwt[+k] || []).filter((x) => x !== id);
+        if (arr.length) nwt[+k] = arr;
+        else delete nwt[+k];
+      });
+      return { workouts: getWorkouts(prev).filter((w) => w.id !== id), weekTemplate: nwt };
     });
-    update({ workouts: workouts.filter((w) => w.id !== id), weekTemplate: nwt });
     if (openW === id) setOpenW(null);
   };
-  const toggleDayWorkout = (wd: number, wid: string) => {
-    const cur = wt[wd] || [];
-    const nwt = { ...wt };
-    const next = cur.includes(wid) ? cur.filter((x) => x !== wid) : [...cur, wid];
-    if (next.length) nwt[wd] = next;
-    else delete nwt[wd];
-    update({ weekTemplate: nwt });
-  };
+  const toggleDayWorkout = (wd: number, wid: string) =>
+    update((prev) => {
+      const pwt = prev.weekTemplate || {};
+      const cur = pwt[wd] || [];
+      const nwt = { ...pwt };
+      const next = cur.includes(wid) ? cur.filter((x) => x !== wid) : [...cur, wid];
+      if (next.length) nwt[wd] = next;
+      else delete nwt[wd];
+      return { weekTemplate: nwt };
+    });
 
   return (
     <div className="px-5 pb-10">

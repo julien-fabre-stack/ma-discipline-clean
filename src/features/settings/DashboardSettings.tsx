@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import type { AppData, Agenda, Habit, Anniversary } from '@/types';
+import type { AppDataPatch } from '@/lib/useAppData';
 import { uid, dateKey } from '@/lib/utils';
 import { useTheme } from '@/shared/theme/ThemeProvider';
 import { Collapsible, Icon, useConfirm } from '@/shared/ui';
@@ -7,7 +8,7 @@ import { AgendaSettings } from './AgendaSettings';
 
 export interface DashboardSettingsProps {
   data: AppData;
-  update: (patch: Partial<AppData>) => void;
+  update: (patch: AppDataPatch) => void;
 }
 
 export function DashboardSettings({ data, update }: DashboardSettingsProps) {
@@ -18,34 +19,35 @@ export function DashboardSettings({ data, update }: DashboardSettingsProps) {
   const [habitsOpen, setHabitsOpen] = useState(false);
   const [annivOpen, setAnnivOpen] = useState(false);
 
-  const move = (i: number, dir: number) => {
-    const s = [...habits];
-    const j = i + dir;
-    if (j < 0 || j >= s.length) return;
-    [s[i], s[j]] = [s[j], s[i]];
-    update({ habits: s });
-  };
+  const move = (i: number, dir: number) =>
+    update((prev) => {
+      const s = [...(prev.habits || [])];
+      const j = i + dir;
+      if (j < 0 || j >= s.length) return prev;
+      [s[i], s[j]] = [s[j], s[i]];
+      return { habits: s };
+    });
   const setLabel = (id: string, label: string) =>
-    update({ habits: habits.map((h) => (h.id === id ? { ...h, label } : h)) });
-  const add = () => update({ habits: [...habits, { id: uid(), label: 'Nouvelle habitude' } as Habit] });
+    update((prev) => ({ habits: (prev.habits || []).map((h) => (h.id === id ? { ...h, label } : h)) }));
+  const add = () => update((prev) => ({ habits: [...(prev.habits || []), { id: uid(), label: 'Nouvelle habitude' } as Habit] }));
   const del = async (h: Habit) => {
     const ok = await askConfirm({ title: "Supprimer l'habitude", message: `Supprimer « ${h.label} » ?` });
-    if (ok) update({ habits: habits.filter((x) => x.id !== h.id) });
+    if (ok) update((prev) => ({ habits: (prev.habits || []).filter((x) => x.id !== h.id) }));
   };
 
   // --- Anniversaires ---
   const setAnniv = (id: string, patch: Partial<Anniversary>) =>
-    update({ anniversaries: anniversaries.map((a) => (a.id === id ? { ...a, ...patch } : a)) });
+    update((prev) => ({ anniversaries: (prev.anniversaries || []).map((a) => (a.id === id ? { ...a, ...patch } : a)) }));
   const addAnniv = () =>
-    update({
+    update((prev) => ({
       anniversaries: [
-        ...anniversaries,
+        ...(prev.anniversaries || []),
         { id: uid(), label: 'Anniversaire', date: dateKey(), notify: true } as Anniversary,
       ],
-    });
+    }));
   const delAnniv = async (a: Anniversary) => {
     const ok = await askConfirm({ title: "Supprimer l'anniversaire", message: `Supprimer « ${a.label} » ?` });
-    if (ok) update({ anniversaries: anniversaries.filter((x) => x.id !== a.id) });
+    if (ok) update((prev) => ({ anniversaries: (prev.anniversaries || []).filter((x) => x.id !== a.id) }));
   };
 
   return (

@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { AppData } from '@/types';
+import type { AppDataPatch } from '@/lib/useAppData';
 import { addDays, parseKey } from '@/lib/utils';
 import { Icon, useConfirm } from '@/shared/ui';
 import { useJournal } from '@/lib/useJournal';
@@ -20,7 +21,7 @@ const J = {
 };
 
 export interface JournalTabProps {
-  update: (patch: Partial<AppData>) => void;
+  update: (patch: AppDataPatch) => void;
   uid: string;
   today: string;
   openSettings: () => void;

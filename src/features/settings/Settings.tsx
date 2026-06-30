@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import type { AppData } from '@/types';
+import type { AppDataPatch } from '@/lib/useAppData';
 import { useTheme } from '@/shared/theme/ThemeProvider';
 import { Icon, type IconName } from '@/shared/ui';
 import { ProfileSettings } from './ProfileSettings';
@@ -12,7 +13,7 @@ import { HelpSettings } from './HelpSettings';
 
 export interface SettingsProps {
   data: AppData;
-  update: (patch: Partial<AppData>) => void;
+  update: (patch: AppDataPatch) => void;
   onClose: () => void;
   onLogout: () => void;
   online: boolean;

@@ -6,6 +6,7 @@ import type {
   TabTransitionId,
   AnimSpeedId,
 } from '@/types';
+import type { AppDataPatch } from '@/lib/useAppData';
 import {
   THEMES,
   FONT_FAMILIES,
@@ -18,7 +19,7 @@ import { useTheme } from '@/shared/theme/ThemeProvider';
 
 export interface ThemeSettingsProps {
   data: AppData;
-  update: (patch: Partial<AppData>) => void;
+  update: (patch: AppDataPatch) => void;
 }
 
 const ACCENTS = ['#FF7A45', '#FFC24B', '#5BC0FF', '#A78BFA', '#4ADE80', '#FF6FA5', '#34D1BF', '#E5484D'];
@@ -53,7 +54,7 @@ export function ThemeSettings({ data, update }: ThemeSettingsProps) {
   );
 
   const setCustom = (patch: Partial<typeof custom>) =>
-    update({ theme: 'custom', customColors: { ...custom, ...patch } });
+    update((prev) => ({ theme: 'custom', customColors: { ...(prev.customColors || DEFAULT_CUSTOM_COLORS), ...patch } }));
 
   return (
     <div className="px-5 pb-10">
@@ -313,7 +314,7 @@ export function ThemeSettings({ data, update }: ThemeSettingsProps) {
             </div>
           </div>
           <button
-            onClick={() => update({ buttonAnim: !buttonAnim })}
+            onClick={() => update((prev) => ({ buttonAnim: prev.buttonAnim === false ? true : false }))}
             className="relative rounded-full"
             style={{
               width: 48,

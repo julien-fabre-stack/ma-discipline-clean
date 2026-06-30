@@ -1,5 +1,6 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { AppData } from '@/types';
+import type { AppDataPatch } from '@/lib/useAppData';
 import { DEFAULT_ACTIVITIES, DEFAULT_RDV_TYPES, DEFAULT_STATUSES } from '@/lib/defaults';
 import { activitiesOf, anniversariesOf, anniversaryDaySet, eventsOf, ratioOfDay, statusOf } from '@/lib/agenda';
 import { sportStatus } from '@/lib/workouts';
@@ -10,7 +11,7 @@ import { DayPanel } from './DayPanel';
 
 export interface SuiviTabProps {
   data: AppData;
-  update: (patch: Partial<AppData>) => void;
+  update: (patch: AppDataPatch) => void;
   today: string;
   openSettings: () => void;
 }

@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import type { AppData, Wod } from '@/types';
+import type { AppDataPatch } from '@/lib/useAppData';
 import { uid } from '@/lib/utils';
 import { useTheme } from '@/shared/theme/ThemeProvider';
 import { Icon, Stepper, useConfirm } from '@/shared/ui';
@@ -72,7 +73,7 @@ function WodEditor({ wod, onSave, onCancel }: { wod: Wod; onSave: (w: Wod) => vo
   );
 }
 
-export function WodSettings({ data, update }: { data: AppData; update: (patch: Partial<AppData>) => void }) {
+export function WodSettings({ data, update }: { data: AppData; update: (patch: AppDataPatch) => void }) {
   const { C, dawn, cardShadow, glowShadow } = useTheme();
   const askConfirm = useConfirm();
   const [wodOpen, setWodOpen] = useState<string | null>(null);
@@ -142,7 +143,7 @@ export function WodSettings({ data, update }: { data: AppData; update: (patch: P
                 onClick={async () => {
                   const ok = await askConfirm({ title: 'Supprimer le WOD', message: `Supprimer « ${w.name} » ?` });
                   if (!ok) return;
-                  update({ wods: data.wods.filter((_, j) => j !== i) });
+                  update((prev) => ({ wods: (prev.wods || []).filter((_, j) => j !== i) }));
                   if (open) setWodOpen(null);
                 }}
                 className="p-1.5 rounded-lg flex-shrink-0"
@@ -163,9 +164,11 @@ export function WodSettings({ data, update }: { data: AppData; update: (patch: P
                   <WodEditor
                     wod={w}
                     onSave={(nw) => {
-                      const a = [...data.wods];
-                      a[i] = nw;
-                      update({ wods: a });
+                      update((prev) => {
+                        const a = [...(prev.wods || [])];
+                        a[i] = nw;
+                        return { wods: a };
+                      });
                       setWodOpen(null);
                       requestAnimationFrame(() => {
                         document.getElementById(`wod-${w.id}`)?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
@@ -182,7 +185,7 @@ export function WodSettings({ data, update }: { data: AppData; update: (patch: P
       <button
         onClick={() => {
           const id = uid();
-          update({ wods: [...(data.wods || []), { id, name: 'Nouveau WOD', transitionDur: 10, items: [] }] });
+          update((prev) => ({ wods: [...(prev.wods || []), { id, name: 'Nouveau WOD', transitionDur: 10, items: [] }] }));
           setWodOpen(id);
         }}
         className="w-full py-2.5 rounded-xl font-semibold text-sm mt-1"
@@ -215,7 +218,7 @@ export function WodSettings({ data, update }: { data: AppData; update: (patch: P
               onClick={() => {
                 const w = parseWod(imp);
                 if (w && w.items.length) {
-                  update({ wods: [...(data.wods || []), w] });
+                  update((prev) => ({ wods: [...(prev.wods || []), w] }));
                   setImp(null);
                 }
               }}

@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import type { AppData, AgendaEvent } from '@/types';
+import type { AppDataPatch } from '@/lib/useAppData';
 import { DEFAULT_HABITS, RDV_COLORS } from '@/lib/defaults';
 import { activitiesOf, anniversariesOf, eventsOf, statusOf, upcomingAnniversaries } from '@/lib/agenda';
 import { sportStatus } from '@/lib/workouts';
@@ -9,7 +10,7 @@ import { Collapsible, Icon, useConfirm } from '@/shared/ui';
 
 export interface DayPanelProps {
   data: AppData;
-  update: (patch: Partial<AppData>) => void;
+  update: (patch: AppDataPatch) => void;
   dayKey: string;
 }
 
@@ -47,11 +48,13 @@ export function DayPanel({ data, update, dayKey }: DayPanelProps) {
   noteTextRef.current = noteText;
 
   const saveNote = (val: string, targetDayKey: string) => {
-    const existing = data.days[targetDayKey] || {};
-    if ((existing.note || '') === val) return;
-    const d = { ...(data.days || {}) };
-    d[targetDayKey] = { ...existing, note: val };
-    update({ days: d });
+    update((prev) => {
+      const existing = prev.days[targetDayKey] || {};
+      if ((existing.note || '') === val) return prev; // no-op
+      const d = { ...(prev.days || {}) };
+      d[targetDayKey] = { ...existing, note: val };
+      return { days: d };
+    });
   };
 
   // Quand on change de jour : annule le debounce en cours, charge la nouvelle note.
@@ -104,19 +107,36 @@ export function DayPanel({ data, update, dayKey }: DayPanelProps) {
   // qu'il s'affiche en double sur les 7 jours précédant l'événement.
   const annivSoon = dayKey === dateKey() ? upcomingAnniversaries(data, dayKey, 7) : [];
 
-  const setDay = (patch: Partial<typeof day>) => {
-    const d = { ...(data.days || {}) };
-    d[dayKey] = { ...day, ...patch };
-    update({ days: d });
-  };
-  const setHabit = (id: string) => setDay({ habits: { ...dh, [id]: !dh[id] } });
+  // Toutes les écritures passent par la forme fonctionnelle update((prev)=>…) :
+  // la nouvelle valeur est calculée depuis l'état LE PLUS RÉCENT (prev), jamais
+  // depuis les variables figées au render. C'est ce qui empêche un tap rapide
+  // (ou un snapshot intercalé) d'annuler le tap précédent.
+  const setHabit = (id: string) =>
+    update((prev) => {
+      const cur = prev.days[dayKey] || {};
+      const curH = cur.habits && !Array.isArray(cur.habits) ? cur.habits : {};
+      const d = { ...(prev.days || {}) };
+      d[dayKey] = { ...cur, habits: { ...curH, [id]: !curH[id] } };
+      return { days: d };
+    });
   const addTodo = () => {
-    if (!newTodo.trim()) return;
-    setDay({ todos: [...todos, { id: uid(), text: newTodo.trim(), done: false }] });
+    const text = newTodo.trim();
+    if (!text) return;
+    update((prev) => {
+      const cur = prev.days[dayKey] || {};
+      const d = { ...(prev.days || {}) };
+      d[dayKey] = { ...cur, todos: [...(cur.todos || []), { id: uid(), text, done: false }] };
+      return { days: d };
+    });
     setNewTodo('');
   };
   const toggleTodo = (id: string) =>
-    setDay({ todos: todos.map((t) => (t.id === id ? { ...t, done: !t.done } : t)) });
+    update((prev) => {
+      const cur = prev.days[dayKey] || {};
+      const d = { ...(prev.days || {}) };
+      d[dayKey] = { ...cur, todos: (cur.todos || []).map((t) => (t.id === id ? { ...t, done: !t.done } : t)) };
+      return { days: d };
+    });
   const delTodo = async (id: string) => {
     const t = todos.find((x) => x.id === id);
     const ok = await askConfirm({
@@ -124,7 +144,12 @@ export function DayPanel({ data, update, dayKey }: DayPanelProps) {
       message: `Supprimer « ${t && t.text ? t.text : 'cette tâche'} » ?`,
     });
     if (!ok) return;
-    setDay({ todos: todos.filter((t) => t.id !== id) });
+    update((prev) => {
+      const cur = prev.days[dayKey] || {};
+      const d = { ...(prev.days || {}) };
+      d[dayKey] = { ...cur, todos: (cur.todos || []).filter((x) => x.id !== id) };
+      return { days: d };
+    });
   };
   const addEvent = () => {
     if (!evtDraft || !evtDraft.label.trim()) return;
@@ -136,7 +161,10 @@ export function DayPanel({ data, update, dayKey }: DayPanelProps) {
       typeId: evtDraft.typeId || null,
       color: evtDraft.color || RDV_COLORS[0],
     };
-    update({ agenda: { ...agenda, events: [...(agenda.events || []), newEvent] } });
+    update((prev) => {
+      const ag = prev.agenda || agenda;
+      return { agenda: { ...ag, events: [...(ag.events || []), newEvent] } };
+    });
     setEvtDraft(null);
   };
   const delEvent = async (id: string) => {
@@ -146,7 +174,10 @@ export function DayPanel({ data, update, dayKey }: DayPanelProps) {
       message: `Supprimer « ${e && e.label ? e.label : 'ce rendez-vous'} » ?`,
     });
     if (!ok) return;
-    update({ agenda: { ...agenda, events: (agenda.events || []).filter((e) => e.id !== id) } });
+    update((prev) => {
+      const ag = prev.agenda || agenda;
+      return { agenda: { ...ag, events: (ag.events || []).filter((x) => x.id !== id) } };
+    });
   };
 
   const dateLabel = parseKey(dayKey).toLocaleDateString('fr-FR', {

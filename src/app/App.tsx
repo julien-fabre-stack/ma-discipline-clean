@@ -1,7 +1,7 @@
 import { lazy, Suspense, useEffect, useMemo, useState } from 'react';
 import { onAuthStateChanged, signOut, type User } from 'firebase/auth';
 import { auth, firebaseReady } from '@/lib/firebase';
-import { useAppData } from '@/lib/useAppData';
+import { useAppData, type AppDataPatch } from '@/lib/useAppData';
 import { useOnlineStatus } from '@/lib/useOnlineStatus';
 import { dateKey } from '@/lib/utils';
 import { expandSession, getWorkouts, workoutForDay } from '@/lib/workouts';
@@ -60,7 +60,7 @@ function AuthedApp({
  onLogout,
 }: {
  data: AppData;
- update: (patch: Partial<AppData>) => void;
+ update: (patch: AppDataPatch) => void;
  uid: string;
  online: boolean;
  pendingWrites: boolean;
@@ -86,14 +86,16 @@ function AuthedApp({
  );
 
  const markSport = () => {
-   const day = data.days[today] || {};
-   const habits = {
-     ...(day.habits && !Array.isArray(day.habits) ? day.habits : {}),
-     sport: true,
-   };
-   const days = { ...data.days };
-   days[today] = { ...day, habits };
-   update({ days });
+   update((prev) => {
+     const day = prev.days[today] || {};
+     const habits = {
+       ...(day.habits && !Array.isArray(day.habits) ? day.habits : {}),
+       sport: true,
+     };
+     const days = { ...prev.days };
+     days[today] = { ...day, habits };
+     return { days };
+   });
  };
 
  const navAlpha = data.navAlpha == null ? 0.92 : data.navAlpha;
@@ -364,7 +366,7 @@ function AppGate({
  authReady: boolean;
  user: User | null;
  data: AppData | null;
- update: (patch: Partial<AppData>) => void;
+ update: (patch: AppDataPatch) => void;
  online: boolean;
  pendingWrites: boolean;
  archiveError: string | null;

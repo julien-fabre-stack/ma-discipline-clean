@@ -143,6 +143,15 @@ export const ICON_PATHS: Record<string, ReactElement> = {
       <path d="M12 17.3h.01" />
     </g>
   ),
+  cake: (
+    <g>
+      <path d="M4 20h16" />
+      <path d="M4 20v-6a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v6" />
+      <path d="M4 15c1.2 0 1.2 1 2.4 1s1.2-1 2.4-1 1.2 1 2.4 1 1.2-1 2.4-1 1.2 1 2.4 1 1.2-1 2.4-1" />
+      <path d="M12 8.5V6" />
+      <path d="M12 4.2c.6.5.9 1 .9 1.5a.9.9 0 0 1-1.8 0c0-.5.3-1 .9-1.5Z" fill="currentColor" stroke="none" />
+    </g>
+  ),
 };
 
 export type IconName = keyof typeof ICON_PATHS;

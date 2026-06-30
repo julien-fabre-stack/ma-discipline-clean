@@ -1,7 +1,7 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { AppData } from '@/types';
 import { DEFAULT_ACTIVITIES, DEFAULT_RDV_TYPES, DEFAULT_STATUSES } from '@/lib/defaults';
-import { activitiesOf, eventsOf, ratioOfDay, statusOf } from '@/lib/agenda';
+import { activitiesOf, anniversariesOf, anniversaryDaySet, eventsOf, ratioOfDay, statusOf } from '@/lib/agenda';
 import { sportStatus } from '@/lib/workouts';
 import { addDays, daysBetween, dateKey, parseKey } from '@/lib/utils';
 import { useTheme } from '@/shared/theme/ThemeProvider';
@@ -30,6 +30,7 @@ interface RowData {
   isToday: boolean;
   evtColors: string[]; // jusqu'à 2 pastilles d'événements
   actColors: string[]; // une entrée par activité globale (couleur ou 'transparent')
+  hasAnniv: boolean; // au moins un anniversaire ce jour-là (point doré)
 }
 
 /**
@@ -76,6 +77,7 @@ const FriseRow = memo(function FriseRow({
         {row.label2}
       </span>
       <span className="flex flex-col items-center justify-center gap-0.5 flex-shrink-0" style={{ width: 10 }}>
+        {row.hasAnniv && <span className="w-1.5 h-1.5 rounded-full" style={{ background: gold }} />}
         {row.perfect && <span className="w-1.5 h-1.5 rounded-full" style={{ background: 'var(--c-ok)' }} />}
         {row.evtColors.map((c, i) => (
           <span key={i} className="w-1.5 h-1.5 rounded-full" style={{ background: c }} />
@@ -145,6 +147,7 @@ export function SuiviTab({ data, update, today, openSettings }: SuiviTabProps) {
   // changent — pas à chaque sélection de jour. Chaque ligne reçoit ensuite
   // des primitives stables, ce qui permet à React.memo de faire son travail.
   const rows = useMemo<RowData[]>(() => {
+    const annivSet = anniversaryDaySet(data);
     return days.map((k) => {
       const st = statusOf(agenda, k);
       const perfect = ratioOfDay(data, k) >= 1 && k <= today;
@@ -176,6 +179,7 @@ export function SuiviTab({ data, update, today, openSettings }: SuiviTabProps) {
         isToday,
         evtColors,
         actColors,
+        hasAnniv: annivSet.has(k.slice(5, 10)),
       };
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -216,6 +220,7 @@ export function SuiviTab({ data, update, today, openSettings }: SuiviTabProps) {
     scrollToDay(findNextDay((k) => activitiesOf(agenda, k).some((a) => a.id === catId)));
   const goToCycle = (catId: string) => scrollToDay(findNextDay((k) => sportStatus(data, k) === catId));
   const goToPerfect = () => scrollToDay(findNextDay((k) => k <= today && ratioOfDay(data, k) >= 1));
+  const goToAnniv = () => scrollToDay(findNextDay((k) => anniversariesOf(data, k).length > 0));
   const goToRdv = (catId: string) =>
     scrollToDay(findNextDay((k) => eventsOf(agenda, k).some((e) => e.typeId === catId)));
 
@@ -295,6 +300,14 @@ export function SuiviTab({ data, update, today, openSettings }: SuiviTabProps) {
           >
             <span className="w-2 h-2 rounded-full" style={{ background: C.ok }} />
             parfaite
+          </button>
+          <button
+            onClick={goToAnniv}
+            className="px-2 py-1 rounded-full text-[10px] flex items-center gap-1 flex-shrink-0 whitespace-nowrap"
+            style={{ background: C.surf, border: `1px solid ${C.line}` }}
+          >
+            <span className="w-2 h-2 rounded-full" style={{ background: C.gold }} />
+            anniv.
           </button>
         </div>
         <div className="flex items-center gap-2 mb-1 overflow-x-auto" style={{ scrollbarWidth: 'none' }}>

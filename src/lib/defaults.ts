@@ -207,6 +207,7 @@ export function defaultAppData(): AppData {
     days: {},
     progress: null,
     agenda: defaultAgenda(),
+    anniversaries: [],
   };
 }
 
@@ -253,6 +254,10 @@ export function migrateData(raw: Partial<AppData> & Record<string, unknown>): Ap
     x.agenda = defaultAgenda();
   } else if (!x.agenda.rdvTypes) {
     x.agenda = { ...x.agenda, rdvTypes: DEFAULT_RDV_TYPES.map((s) => ({ ...s })) };
+  }
+  // Anniversaires : champ ajouté après coup, absent des anciens documents.
+  if (!Array.isArray(x.anniversaries)) {
+    x.anniversaries = [];
   }
   return x;
 }

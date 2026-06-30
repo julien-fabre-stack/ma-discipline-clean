@@ -1,9 +1,9 @@
 import { useState, useRef, useEffect } from 'react';
 import type { AppData, AgendaEvent } from '@/types';
 import { DEFAULT_HABITS, RDV_COLORS } from '@/lib/defaults';
-import { activitiesOf, eventsOf, statusOf } from '@/lib/agenda';
+import { activitiesOf, anniversariesOf, eventsOf, statusOf, upcomingAnniversaries } from '@/lib/agenda';
 import { sportStatus } from '@/lib/workouts';
-import { parseKey, uid } from '@/lib/utils';
+import { parseKey, uid, dateKey } from '@/lib/utils';
 import { useTheme } from '@/shared/theme/ThemeProvider';
 import { Collapsible, Icon, useConfirm } from '@/shared/ui';
 
@@ -99,6 +99,10 @@ export function DayPanel({ data, update, dayKey }: DayPanelProps) {
   const acts = activitiesOf(agenda, dayKey);
   const evts = eventsOf(agenda, dayKey);
   const sport = sportStatus(data, dayKey);
+  const annivToday = anniversariesOf(data, dayKey);
+  // Rappel "à venir" uniquement sur la fiche d'aujourd'hui, pour éviter
+  // qu'il s'affiche en double sur les 7 jours précédant l'événement.
+  const annivSoon = dayKey === dateKey() ? upcomingAnniversaries(data, dayKey, 7) : [];
 
   const setDay = (patch: Partial<typeof day>) => {
     const d = { ...(data.days || {}) };
@@ -190,6 +194,48 @@ export function DayPanel({ data, update, dayKey }: DayPanelProps) {
           </span>
         ))}
       </div>
+
+      {annivToday.length > 0 && (
+        <div
+          className="rounded-2xl px-4 py-3 mb-3 flex items-start gap-3"
+          style={{ background: C.gold, color: '#1A1206' }}
+        >
+          <Icon name="cake" size={20} color="#1A1206" />
+          <div className="min-w-0">
+            {annivToday.map((h, i) => (
+              <div key={i} className="text-sm font-bold leading-tight">
+                {h.label}
+                {h.years != null && (
+                  <span className="font-semibold"> · {h.years} ans</span>
+                )}
+              </div>
+            ))}
+            <div className="text-[11px] font-semibold opacity-80 mt-0.5">
+              C'est aujourd'hui 🎂
+            </div>
+          </div>
+        </div>
+      )}
+
+      {annivSoon.length > 0 && (
+        <div
+          className="rounded-2xl px-4 py-2.5 mb-3 flex items-center gap-2.5"
+          style={{ background: C.surf2, border: `1px solid ${C.gold}` }}
+        >
+          <Icon name="cake" size={16} color={C.gold} />
+          <div className="text-xs min-w-0" style={{ color: C.text }}>
+            {annivSoon.map((a, i) => (
+              <span key={i}>
+                {i > 0 && ' · '}
+                <span className="font-semibold">{a.label}</span>{' '}
+                <span style={{ color: C.dim }}>
+                  {a.inDays === 1 ? 'demain' : `dans ${a.inDays} j`}
+                </span>
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
 
       <Collapsible title="Habitudes" badge={`${doneCount}/${habits.length}`} open={open.habits} onToggle={() => toggle('habits')}>
         <div className="rounded-xl overflow-hidden mb-1" style={{ border: `1px solid ${C.line}` }}>

@@ -1,6 +1,6 @@
 import type { AppData, Agenda, AgendaCategory, AgendaEvent } from '@/types';
 import { DEFAULT_HABITS } from './defaults';
-import { inRange } from './utils';
+import { addDays, inRange } from './utils';
 
 export function statusOf(agenda: Agenda, k: string): AgendaCategory | null {
   const p = (agenda.periods || []).find(
@@ -46,4 +46,79 @@ export function cycleStatusOf(agenda: Agenda, k: string): string | null {
     (p) => p.kind === 'cycle' && inRange(k, p.start, p.end)
   );
   return p ? p.catId : null;
+}
+
+// ===== Anniversaires (récurrence annuelle) =====
+
+/** Extrait la portion "MM-DD" d'une clé "YYYY-MM-DD". */
+function mmdd(k: string): string {
+  return k.length >= 10 ? k.slice(5, 10) : k;
+}
+
+export interface AnnivHit {
+  label: string;
+  /** Âge atteint ce jour-là, si l'année d'origine est connue ; sinon null. */
+  years: number | null;
+}
+
+/**
+ * Anniversaires tombant un jour donné. Fusionne la date de naissance du
+ * profil (si renseignée) et la liste personnalisée data.anniversaries.
+ * La comparaison porte UNIQUEMENT sur le mois+jour : contrairement à un
+ * AgendaEvent (lié à une date fixe), un anniversaire revient chaque année.
+ */
+export function anniversariesOf(data: AppData, dayKey: string): AnnivHit[] {
+  const md = mmdd(dayKey);
+  const year = Number(dayKey.slice(0, 4));
+  const hits: AnnivHit[] = [];
+  const bd = data.profile?.birthdate;
+  if (bd && mmdd(bd) === md) {
+    const by = Number(bd.slice(0, 4));
+    hits.push({ label: 'Ton anniversaire', years: by && by < year ? year - by : null });
+  }
+  for (const a of data.anniversaries || []) {
+    if (a.date && mmdd(a.date) === md) {
+      const ay = Number(a.date.slice(0, 4));
+      hits.push({ label: a.label, years: ay && ay < year ? year - ay : null });
+    }
+  }
+  return hits;
+}
+
+/**
+ * Ensemble des "MM-DD" portant au moins un anniversaire.
+ * Pré-calculé une seule fois puis interrogé en O(1) par la frise, qui
+ * affiche ~600 jours : évite de reparcourir la liste pour chaque jour.
+ */
+export function anniversaryDaySet(data: AppData): Set<string> {
+  const s = new Set<string>();
+  const bd = data.profile?.birthdate;
+  if (bd) s.add(mmdd(bd));
+  for (const a of data.anniversaries || []) {
+    if (a.date) s.add(mmdd(a.date));
+  }
+  return s;
+}
+
+/**
+ * Anniversaires à venir dans les `within` prochains jours (exclut le jour
+ * même). Respecte le drapeau `notify` des anniversaires personnalisés ;
+ * la date de naissance du profil alerte toujours.
+ */
+export function upcomingAnniversaries(
+  data: AppData,
+  fromKey: string,
+  within = 7
+): { label: string; inDays: number }[] {
+  const out: { label: string; inDays: number }[] = [];
+  const bd = data.profile?.birthdate;
+  const list = data.anniversaries || [];
+  for (let i = 1; i <= within; i++) {
+    const md = mmdd(addDays(fromKey, i));
+    if (bd && mmdd(bd) === md) out.push({ label: 'Ton anniversaire', inDays: i });
+    for (const a of list) {
+      if (a.notify && a.date && mmdd(a.date) === md) out.push({ label: a.label, inDays: i });
+    }
+  }
+  return out;
 }

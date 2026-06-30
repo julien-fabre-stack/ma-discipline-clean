@@ -162,6 +162,22 @@ export interface Profile {
   photo: string;
 }
 
+// ===== Dates anniversaires =====
+
+/**
+ * Anniversaire récurrent annuel. La comparaison se fait sur le mois+jour
+ * (MM-DD), indépendamment de l'année : l'événement revient chaque année.
+ * `date` est stockée au format ISO "YYYY-MM-DD" (sortie native de <input
+ * type="date">) ; l'année sert uniquement à calculer l'âge atteint quand
+ * elle correspond à une vraie année d'origine.
+ */
+export interface Anniversary {
+  id: string;
+  label: string;
+  date: string;     // "YYYY-MM-DD" — seul MM-DD est utilisé pour la récurrence
+  notify: boolean;  // alerte 7 jours à l'avance dans le tableau de bord
+}
+
 // ===== Thème / apparence =====
 
 export type ThemeId = 'aube' | 'nuit' | 'ardoise' | 'aurore' | 'foret' | 'paper' | 'custom';
@@ -204,6 +220,9 @@ export interface AppData {
   days: DaysMap;
   progress: SessionProgress | null;
   agenda: Agenda;
+
+  /** Dates anniversaires récurrentes (annuelles). */
+  anniversaries: Anniversary[];
 
   /** Chiffrement du journal (optionnel tant que pas configuré). */
   journalMeta?: JournalMeta;

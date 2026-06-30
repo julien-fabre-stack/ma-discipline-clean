@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useMemo, useState } from 'react';
+import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import { onAuthStateChanged, signOut, type User } from 'firebase/auth';
 import { auth, firebaseReady } from '@/lib/firebase';
 import { useAppData, type AppDataPatch } from '@/lib/useAppData';
@@ -304,7 +304,11 @@ export function App() {
  const [authReady, setAuthReady] = useState(false);
  const online = useOnlineStatus();
 
- const appData = useAppData(authReady && user ? user.uid : null);
+ // Dernier uid connu, mémorisé pour permettre un démarrage HORS-LIGNE même si
+ // Firebase Auth n'a pas encore (ou pas pu) restaurer la session en mode avion.
+ const cachedUidRef = useRef<string | null>(
+   typeof localStorage !== 'undefined' ? localStorage.getItem('last_uid') : null
+ );
 
  useEffect(() => {
    if (!firebaseReady || !auth) {
@@ -315,10 +319,20 @@ export function App() {
    const unsub = onAuthStateChanged(auth, (u) => {
      clearTimeout(timer);
      setUser(u);
+     if (u) {
+       cachedUidRef.current = u.uid;
+       try { localStorage.setItem('last_uid', u.uid); } catch { /* quota */ }
+     }
      setAuthReady(true);
    });
    return () => { clearTimeout(timer); unsub(); };
  }, []);
+
+ // uid effectif : l'utilisateur Firebase connecté, ou — hors-ligne seulement —
+ // le dernier uid connu, pour que l'app démarre en mode avion sans rester
+ // bloquée sur l'écran de connexion.
+ const effectiveUid = user?.uid ?? (!online ? cachedUidRef.current : null);
+ const appData = useAppData(authReady ? effectiveUid : null);
 
  const themeId = appData.data?.theme || 'aube';
  const accent = appData.data?.accent || null;
@@ -338,14 +352,14 @@ export function App() {
      <ConfirmProvider>
        <AppGate
          authReady={authReady}
-         user={user}
+         uid={effectiveUid}
          data={appData.data}
          update={appData.update}
          online={online}
          pendingWrites={appData.pendingWrites}
          archiveError={appData.archiveError}
          localCacheError={appData.localCacheError}
-         onLogout={() => auth && signOut(auth)}
+         onLogout={() => { try { localStorage.removeItem('last_uid'); } catch { /* */ } if (auth) signOut(auth); }}
        />
      </ConfirmProvider>
    </ThemeProvider>
@@ -354,7 +368,7 @@ export function App() {
 
 function AppGate({
  authReady,
- user,
+ uid,
  data,
  update,
  online,
@@ -364,7 +378,7 @@ function AppGate({
  onLogout,
 }: {
  authReady: boolean;
- user: User | null;
+ uid: string | null;
  data: AppData | null;
  update: (patch: AppDataPatch) => void;
  online: boolean;
@@ -395,7 +409,7 @@ function AppGate({
    );
  }
 
- if (!user) return <Login />;
+ if (!uid) return <Login />;
 
  if (!data) {
    return (
@@ -409,7 +423,7 @@ function AppGate({
    <AuthedApp
      data={data}
      update={update}
-     uid={user.uid}
+     uid={uid}
      online={online}
      pendingWrites={pendingWrites}
      archiveError={archiveError}

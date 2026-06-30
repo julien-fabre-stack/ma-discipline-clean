@@ -35,6 +35,12 @@ export function DayPanel({ data, update, dayKey }: DayPanelProps) {
   const [open, setOpen] = useState({ habits: false, rdv: false, todo: false, note: false });
   const toggle = (k: keyof typeof open) => setOpen((o) => ({ ...o, [k]: !o[k] }));
 
+  // État optimiste local des cases d'habitudes : la case bascule INSTANTANÉMENT
+  // au tap, sans attendre l'aller-retour Firestore (qui restait parfois en
+  // suspens et donnait l'impression que la coche « ne marchait pas »). On
+  // repart de zéro à chaque changement de jour.
+  const [optHabits, setOptHabits] = useState<Record<string, boolean>>({});
+
   // --- Note : état local + debounce long + protection contre les snapshots ---
   // Le textarea est toujours réactif (état local), la sauvegarde part après
   // 1500ms d'inactivité. Quand le champ est focusé (isFocusedRef = true),
@@ -69,6 +75,9 @@ export function DayPanel({ data, update, dayKey }: DayPanelProps) {
     const fresh = (data.days[dayKey] || {}).note || '';
     setNoteText(fresh);
     noteTextRef.current = fresh;
+    // Réinitialise l'optimisme des habitudes pour le nouveau jour (sinon une
+    // case pourrait apparaître cochée à tort sur le jour suivant).
+    setOptHabits({});
   }
 
   // Sync depuis les données externes, SEULEMENT si le champ n'est pas focusé.
@@ -111,14 +120,18 @@ export function DayPanel({ data, update, dayKey }: DayPanelProps) {
   // la nouvelle valeur est calculée depuis l'état LE PLUS RÉCENT (prev), jamais
   // depuis les variables figées au render. C'est ce qui empêche un tap rapide
   // (ou un snapshot intercalé) d'annuler le tap précédent.
-  const setHabit = (id: string) =>
+  const habitChecked = (id: string) => (id in optHabits ? optHabits[id] : !!dh[id]);
+  const setHabit = (id: string) => {
+    const next = !habitChecked(id);
+    setOptHabits((o) => ({ ...o, [id]: next })); // réponse visuelle immédiate
     update((prev) => {
       const cur = prev.days[dayKey] || {};
       const curH = cur.habits && !Array.isArray(cur.habits) ? cur.habits : {};
       const d = { ...(prev.days || {}) };
-      d[dayKey] = { ...cur, habits: { ...curH, [id]: !curH[id] } };
+      d[dayKey] = { ...cur, habits: { ...curH, [id]: next } };
       return { days: d };
     });
+  };
   const addTodo = () => {
     const text = newTodo.trim();
     if (!text) return;
@@ -186,7 +199,7 @@ export function DayPanel({ data, update, dayKey }: DayPanelProps) {
     month: 'long',
     year: 'numeric',
   });
-  const doneCount = habits.filter((h) => dh[h.id]).length;
+  const doneCount = habits.filter((h) => habitChecked(h.id)).length;
   const openTodos = todos.filter((t) => !t.done).length;
 
   return (
@@ -282,13 +295,13 @@ export function DayPanel({ data, update, dayKey }: DayPanelProps) {
                 style={{
                   width: 18,
                   height: 18,
-                  background: dh[it.id] ? dawn : 'transparent',
-                  border: dh[it.id] ? 'none' : `2px solid ${C.surf}`,
+                  background: habitChecked(it.id) ? dawn : 'transparent',
+                  border: habitChecked(it.id) ? 'none' : `2px solid ${C.surf}`,
                 }}
               >
-                {dh[it.id] && <Icon name="check" size={11} color="#1A1206" strokeWidth={3} />}
+                {habitChecked(it.id) && <Icon name="check" size={11} color="#1A1206" strokeWidth={3} />}
               </div>
-              <span className="text-xs" style={{ color: dh[it.id] ? C.text : C.dim }}>
+              <span className="text-xs" style={{ color: habitChecked(it.id) ? C.text : C.dim }}>
                 {it.label}
               </span>
             </button>

@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import type { AppData } from '@/types';
 import type { AppDataPatch } from '@/lib/useAppData';
 import { addDays, parseKey } from '@/lib/utils';
 import { Icon, useConfirm } from '@/shared/ui';

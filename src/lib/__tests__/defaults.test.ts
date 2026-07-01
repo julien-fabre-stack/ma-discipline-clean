@@ -18,11 +18,30 @@ describe('migrateData — document vide', () => {
 });
 
 describe('migrateData — legacy session → workouts', () => {
-  it('reprend l\'ancienne session comme items de la séance par défaut', () => {
+  // NB : migrateData part de `{ ...defaultAppData(), ...raw }`, et
+  // defaultAppData() remplit déjà `workouts` avec la séance par défaut.
+  // La branche `session` legacy (`!x.workouts || !x.workouts.length`)
+  // n'est donc atteignable QUE si `raw.workouts` est explicitement vide.
+  // On fige ce comportement réel plutôt que le comportement supposé.
+  it('un document sans `workouts` récupère la séance par défaut (le spread ne vide jamais x.workouts)', () => {
     const session: Exercise[] = [
       { id: 's0', name: 'Pompes', reps: 10, rest: 25, sets: 3, timed: false, dur: 0 },
     ];
     const m = migrateData({ session } as Record<string, unknown>);
+    expect(m.workouts).toHaveLength(1);
+    expect(m.workouts[0].id).toBe('law');
+    // defaultAppData() a déjà peuplé workouts avant que `session` ne soit
+    // regardé : la séance par défaut (52 exercices) est utilisée, PAS
+    // la session legacy fournie ici.
+    expect(m.workouts[0].items.length).toBeGreaterThan(1);
+    expect(m.workouts[0].items).not.toEqual(session);
+  });
+
+  it('workouts explicitement vide ([]) écrase le défaut → la session legacy est alors utilisée', () => {
+    const session: Exercise[] = [
+      { id: 's0', name: 'Pompes', reps: 10, rest: 25, sets: 3, timed: false, dur: 0 },
+    ];
+    const m = migrateData({ workouts: [], session } as unknown as Record<string, unknown>);
     expect(m.workouts).toHaveLength(1);
     expect(m.workouts[0].id).toBe('law');
     expect(m.workouts[0].items).toEqual(session);

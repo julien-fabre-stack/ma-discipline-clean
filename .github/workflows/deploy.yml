@@ -32,6 +32,22 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      # Lint AVANT build : 0 erreur actuellement (13 warnings connus, non
+      # bloquants — voir react-hooks/exhaustive-deps et
+      # react-refresh/only-export-components). ESLint sort en code 0 tant
+      # qu'il n'y a que des warnings ; ce step échoue seulement si une
+      # vraie erreur de lint est introduite.
+      - name: Lint
+        run: npm run lint
+
+      # Tests AVANT build : logique pure (utils, defaults/migrateData,
+      # guards, schema). Rapide (<1s), doit échouer la CI si une régression
+      # est poussée — c'est justement ce que la CI actuelle ne détectait
+      # pas (les tests n'étaient exécutés qu'en local).
+      - name: Test
+        run: npm run test
+
+      # Le typecheck est déjà inclus dans "npm run build" via "tsc -b".
       - name: Build
         run: npm run build
 

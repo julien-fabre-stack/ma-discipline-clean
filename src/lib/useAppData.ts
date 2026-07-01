@@ -10,6 +10,7 @@ import type { AppData } from '@/types';
 import { defaultAppData, migrateData } from './defaults';
 import { dateKey, pruneOldDays } from './utils';
 import { decideSnapshot, stripUndefined } from './guards';
+import { parseRemoteAppData } from './schema';
 
 /**
  * Un patch peut être un objet partiel OU une fonction (prev) => patch.
@@ -51,7 +52,13 @@ function loadLocal(uid: string): AppData | null {
   try {
     const raw = localStorage.getItem(localKey(uid));
     if (!raw) return null;
-    return migrateData({ ...defaultAppData(), ...JSON.parse(raw) });
+    const parsed = JSON.parse(raw);
+    const validated = parseRemoteAppData(parsed);
+    if (!validated.ok) {
+      console.warn('Cache local corrompu, ignoré :', validated.error);
+      return null;
+    }
+    return migrateData({ ...defaultAppData(), ...validated.data });
   } catch { return null; }
 }
 
@@ -191,9 +198,25 @@ export function useAppData(uid: string | null): UseAppDataResult {
       (snap) => {
         setPendingWrites(snap.metadata.hasPendingWrites);
 
-        const base = snap.exists()
-          ? migrateData({ ...defaultAppData(), ...(snap.data() as Partial<AppData>) })
-          : migrateData({ ...defaultAppData() });
+        // Validation Zod AVANT migrateData : n'attrape que les formes
+        // impossibles à digérer (données corrompues), pas les documents
+        // simplement anciens — migrateData gère déjà ce cas. En cas de
+        // rejet : repli silencieux sur le dernier état local connu (aucune
+        // UI, aucun écrasement) ; s'il n'y en a aucun, repli sur les
+        // valeurs par défaut pour ne jamais bloquer l'app.
+        let base: AppData;
+        if (snap.exists()) {
+          const validated = parseRemoteAppData(snap.data());
+          if (!validated.ok) {
+            console.warn('Document Firestore corrompu, ignoré :', validated.error);
+            if (dataRef.current) return; // garde l'état local affiché tel quel
+            base = migrateData({ ...defaultAppData() });
+          } else {
+            base = migrateData({ ...defaultAppData(), ...validated.data });
+          }
+        } else {
+          base = migrateData({ ...defaultAppData() });
+        }
 
         // GARDE DE FRAÎCHEUR + verrou de saisie — logique pure extraite
         // dans guards.ts (decideSnapshot), testée unitairement. Le

@@ -29,9 +29,20 @@ export interface UseAppDataResult {
   pendingWrites: boolean;
   archiveError: string | null;       // mois échoués à archiver, null si aucun
   localCacheError: boolean;          // true si localStorage a dépassé son quota
+  /**
+   * Code d'erreur Firestore si l'écriture du document principal a échoué
+   * après épuisement des tentatives (ex. 'invalid-argument',
+   * 'permission-denied'). null tant que tout va bien. AVANT ce champ, ces
+   * échecs étaient totalement silencieux : le serveur restait figé à la
+   * dernière écriture réussie pendant que l'app affichait des données
+   * locales — d'où une synchro « bloquée » à une date passée.
+   */
+  syncError: string | null;
 }
 
 const SAVE_DEBOUNCE_MS = 400;
+/** Délais (ms) entre tentatives d'écriture après un échec. */
+const RETRY_DELAYS_MS = [2000, 6000, 15000];
 
 function localKey(uid: string) { return `appdata_${uid}`; }
 
@@ -59,11 +70,34 @@ function saveLocal(uid: string, data: AppData): boolean {
   }
 }
 
+/**
+ * Retire récursivement toutes les valeurs `undefined` d'un objet/tableau.
+ * Firestore REJETTE tout document contenant `undefined` (contrairement à
+ * `null`, accepté). Une seule valeur `undefined` glissée dans AppData
+ * suffisait à faire échouer TOUTES les écritures suivantes — silencieusement,
+ * puisque le setDoc n'était pas intercepté. Ce nettoyage élimine cette
+ * classe d'échec à la racine.
+ */
+function stripUndefined<T>(value: T): T {
+  if (Array.isArray(value)) {
+    return value.map((v) => stripUndefined(v)) as unknown as T;
+  }
+  if (value !== null && typeof value === 'object') {
+    const out: Record<string, unknown> = {};
+    for (const [k, v] of Object.entries(value as Record<string, unknown>)) {
+      if (v !== undefined) out[k] = stripUndefined(v);
+    }
+    return out as T;
+  }
+  return value;
+}
+
 export function useAppData(uid: string | null): UseAppDataResult {
   const [data, setData] = useState<AppData | null>(null);
   const [pendingWrites, setPendingWrites] = useState(false);
   const [archiveError, setArchiveError] = useState<string | null>(null);
   const [localCacheError, setLocalCacheError] = useState(false);
+  const [syncError, setSyncError] = useState<string | null>(null);
 
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const docRef = useRef<DocumentReference | null>(null);
@@ -76,13 +110,42 @@ export function useAppData(uid: string | null): UseAppDataResult {
   // de la saisie optimiste en cours (l'équivalent du verrou de focus des notes,
   // mais valable pour TOUS les contrôles : cases, steppers, eau, todos…).
   const localDirty = useRef(false);
+  // Dernière charge utile en attente de flush (pour le flush immédiat sur
+  // pagehide : iOS peut tuer la PWA AVANT l'expiration du débounce de 400 ms,
+  // auquel cas l'écriture serveur n'était jamais mise en file — perdue).
+  const pendingPayload = useRef<{ ref: DocumentReference; next: AppData } | null>(null);
+  const retryTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => { dataRef.current = data; }, [data]);
 
+  /**
+   * Écriture Firestore effective, avec interception d'erreur et tentatives.
+   * Chaque nouvelle écriture annule les tentatives de la précédente (la
+   * charge la plus récente contient tout l'état, inutile de rejouer l'ancienne).
+   */
+  const commit = useCallback((ref: DocumentReference, next: AppData, attempt = 0) => {
+    if (retryTimer.current) { clearTimeout(retryTimer.current); retryTimer.current = null; }
+    setDoc(ref, stripUndefined(next), { merge: true })
+      .then(() => setSyncError(null))
+      .catch((e: { code?: string }) => {
+        const code = e?.code ?? 'unknown';
+        console.warn(`setDoc échoué (tentative ${attempt + 1}) :`, code, e);
+        if (attempt < RETRY_DELAYS_MS.length) {
+          retryTimer.current = setTimeout(
+            () => commit(ref, dataRef.current ?? next, attempt + 1),
+            RETRY_DELAYS_MS[attempt]
+          );
+        } else {
+          // Échec définitif : on le rend VISIBLE au lieu de le taire.
+          // Les données restent dans localStorage, rien n'est perdu localement.
+          setSyncError(code);
+        }
+      });
+  }, []);
+
   // Planificateur d'écriture unique et debouncé. Une seule écriture « en vol »
   // à la fois : chaque appel annule la précédente et garde localDirty=true
-  // jusqu'au flush effectif. Remplace l'ancien compteur pendingVersion qui
-  // pouvait rester bloqué > 0 après une rafale de modifications.
+  // jusqu'au flush effectif.
   const scheduleSave = useCallback((ref: DocumentReference, next: AppData) => {
     const u = uidRef.current;
     if (u) {
@@ -90,13 +153,38 @@ export function useAppData(uid: string | null): UseAppDataResult {
       if (!ok) setLocalCacheError(true);
     }
     localDirty.current = true;
+    pendingPayload.current = { ref, next };
     if (saveTimer.current) clearTimeout(saveTimer.current);
     saveTimer.current = setTimeout(() => {
       saveTimer.current = null;
       localDirty.current = false;
-      void setDoc(ref, next, { merge: true });
+      pendingPayload.current = null;
+      commit(ref, next);
     }, SAVE_DEBOUNCE_MS);
-  }, []);
+  }, [commit]);
+
+  /** Flush immédiat du débounce en cours (appelé quand la page se cache). */
+  const flushNow = useCallback(() => {
+    if (!pendingPayload.current) return;
+    const { ref, next } = pendingPayload.current;
+    if (saveTimer.current) { clearTimeout(saveTimer.current); saveTimer.current = null; }
+    localDirty.current = false;
+    pendingPayload.current = null;
+    commit(ref, next);
+  }, [commit]);
+
+  // iOS PWA : quand l'app passe en arrière-plan, les timers JS sont gelés puis
+  // le processus peut être tué. Sans flush, toute modification faite dans les
+  // 400 ms précédentes n'atteignait JAMAIS Firestore.
+  useEffect(() => {
+    const onHide = () => { if (document.visibilityState === 'hidden') flushNow(); };
+    window.addEventListener('pagehide', flushNow);
+    document.addEventListener('visibilitychange', onHide);
+    return () => {
+      window.removeEventListener('pagehide', flushNow);
+      document.removeEventListener('visibilitychange', onHide);
+    };
+  }, [flushNow]);
 
   useEffect(() => {
     if (!uid || !db) {
@@ -135,9 +223,32 @@ export function useAppData(uid: string | null): UseAppDataResult {
           ? migrateData({ ...defaultAppData(), ...(snap.data() as Partial<AppData>) })
           : migrateData({ ...defaultAppData() });
 
+        // GARDE DE FRAÎCHEUR — le cœur du correctif « bloqué au 29 juin ».
+        // Si le snapshot entrant est PLUS ANCIEN que l'état local (cache
+        // localStorage chargé au démarrage, ou état courant), on ne l'applique
+        // pas : avant, il écrasait l'état ET réécrivait localStorage, annulant
+        // définitivement toute modification dont l'écriture serveur avait été
+        // perdue (débounce tué par iOS, setDoc échoué…). En prime, si le
+        // snapshot vient du SERVEUR (pas du cache), on re-pousse l'état local
+        // pour remettre le serveur à niveau (auto-guérison).
+        const local = dataRef.current;
+        const incomingAt = base.updatedAt ?? 0;
+        const localAt = local?.updatedAt ?? 0;
+        if (local && incomingAt < localAt) {
+          if (snap.metadata.fromCache === false && !snap.metadata.hasPendingWrites) {
+            console.log(
+              `Serveur en retard (${incomingAt} < ${localAt}) : re-poussée des données locales.`
+            );
+            scheduleSave(ref, local);
+          }
+          return;
+        }
+
         if (!snap.exists() && snap.metadata.fromCache === false) {
           console.log('Création du document Firestore (première initialisation)');
-          void setDoc(ref, defaultAppData());
+          setDoc(ref, stripUndefined(defaultAppData())).catch((e) =>
+            console.warn('Création du document échouée :', e)
+          );
         }
 
         const { kept, removed, changed } = pruneOldDays(base.days, today);
@@ -155,7 +266,7 @@ export function useAppData(uid: string | null): UseAppDataResult {
             Object.entries(byMonth).forEach(([m, obj]) => {
               const archiveRef = doc(db!, 'users', uid, 'archive', m);
               const attempt = (retries: number) =>
-                setDoc(archiveRef, obj, { merge: true }).catch((e) => {
+                setDoc(archiveRef, stripUndefined(obj), { merge: true }).catch((e) => {
                   if (retries > 0) {
                     setTimeout(() => attempt(retries - 1), 5000);
                   } else {
@@ -190,10 +301,12 @@ export function useAppData(uid: string | null): UseAppDataResult {
 
     return () => {
       unsub();
-      if (saveTimer.current) clearTimeout(saveTimer.current);
-      localDirty.current = false;
+      // On FLUSH au lieu de jeter : avant, le clearTimeout du cleanup
+      // annulait purement et simplement l'écriture en attente.
+      flushNow();
+      if (retryTimer.current) { clearTimeout(retryTimer.current); retryTimer.current = null; }
     };
-  }, [uid, scheduleSave]);
+  }, [uid, scheduleSave, flushNow]);
 
   const update = useCallback((patch: AppDataPatch) => {
     setData((prev) => {
@@ -202,7 +315,8 @@ export function useAppData(uid: string | null): UseAppDataResult {
       // Convention : si l'updater renvoie `prev` tel quel, c'est un no-op
       // (rien à écrire). On évite ainsi une écriture Firestore inutile.
       if (resolved === prev) return prev;
-      const next: AppData = { ...prev, ...resolved };
+      // Horodatage de fraîcheur : chaque modification locale date l'état.
+      const next: AppData = { ...prev, ...resolved, updatedAt: Date.now() };
       dataRef.current = next;
       const ref = docRef.current;
       if (ref) {
@@ -215,5 +329,5 @@ export function useAppData(uid: string | null): UseAppDataResult {
     });
   }, [scheduleSave]);
 
-  return { data, update, pendingWrites, archiveError, localCacheError };
+  return { data, update, pendingWrites, archiveError, localCacheError, syncError };
 }

@@ -224,6 +224,14 @@ export interface AppData {
   /** Dates anniversaires récurrentes (annuelles). */
   anniversaries: Anniversary[];
 
+  /**
+   * Horodatage (epoch ms) de la dernière modification locale.
+   * Sert de garde de fraîcheur : un snapshot Firestore plus ancien que
+   * l'état local ne doit JAMAIS l'écraser (sinon retour aux vieilles données
+   * à chaque relance si une écriture serveur a été perdue).
+   */
+  updatedAt?: number;
+
   /** Chiffrement du journal (optionnel tant que pas configuré). */
   journalMeta?: JournalMeta;
 

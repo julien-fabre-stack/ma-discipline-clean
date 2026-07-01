@@ -208,6 +208,7 @@ export function defaultAppData(): AppData {
     progress: null,
     agenda: defaultAgenda(),
     anniversaries: [],
+    updatedAt: 0,
   };
 }
 
@@ -258,6 +259,10 @@ export function migrateData(raw: Partial<AppData> & Record<string, unknown>): Ap
   // Anniversaires : champ ajouté après coup, absent des anciens documents.
   if (!Array.isArray(x.anniversaries)) {
     x.anniversaries = [];
+  }
+  // Garde de fraîcheur : les anciens documents n'ont pas d'horodatage.
+  if (typeof x.updatedAt !== 'number' || !Number.isFinite(x.updatedAt)) {
+    x.updatedAt = 0;
   }
   return x;
 }

@@ -9,6 +9,7 @@ import { db } from './firebase';
 import type { AppData } from '@/types';
 import { defaultAppData, migrateData } from './defaults';
 import { dateKey, pruneOldDays } from './utils';
+import { decideSnapshot, stripUndefined } from './guards';
 
 /**
  * Un patch peut être un objet partiel OU une fonction (prev) => patch.
@@ -68,28 +69,6 @@ function saveLocal(uid: string, data: AppData): boolean {
     console.warn('localStorage plein ou indisponible :', e);
     return false;
   }
-}
-
-/**
- * Retire récursivement toutes les valeurs `undefined` d'un objet/tableau.
- * Firestore REJETTE tout document contenant `undefined` (contrairement à
- * `null`, accepté). Une seule valeur `undefined` glissée dans AppData
- * suffisait à faire échouer TOUTES les écritures suivantes — silencieusement,
- * puisque le setDoc n'était pas intercepté. Ce nettoyage élimine cette
- * classe d'échec à la racine.
- */
-function stripUndefined<T>(value: T): T {
-  if (Array.isArray(value)) {
-    return value.map((v) => stripUndefined(v)) as unknown as T;
-  }
-  if (value !== null && typeof value === 'object') {
-    const out: Record<string, unknown> = {};
-    for (const [k, v] of Object.entries(value as Record<string, unknown>)) {
-      if (v !== undefined) out[k] = stripUndefined(v);
-    }
-    return out as T;
-  }
-  return value;
 }
 
 export function useAppData(uid: string | null): UseAppDataResult {
@@ -212,35 +191,28 @@ export function useAppData(uid: string | null): UseAppDataResult {
       (snap) => {
         setPendingWrites(snap.metadata.hasPendingWrites);
 
-        // Une modification locale est en attente : on ne laisse AUCUN snapshot
-        // (cache OU serveur) réécrire l'état, sinon la saisie en cours (case,
-        // quantité…) serait écrasée par une version qui ne la contient pas
-        // encore. Exception : si rien n'est encore affiché, on accepte le tout
-        // premier chargement pour ne pas rester sur un écran vide.
-        if (localDirty.current && dataRef.current !== null) return;
-
         const base = snap.exists()
           ? migrateData({ ...defaultAppData(), ...(snap.data() as Partial<AppData>) })
           : migrateData({ ...defaultAppData() });
 
-        // GARDE DE FRAÎCHEUR — le cœur du correctif « bloqué au 29 juin ».
-        // Si le snapshot entrant est PLUS ANCIEN que l'état local (cache
-        // localStorage chargé au démarrage, ou état courant), on ne l'applique
-        // pas : avant, il écrasait l'état ET réécrivait localStorage, annulant
-        // définitivement toute modification dont l'écriture serveur avait été
-        // perdue (débounce tué par iOS, setDoc échoué…). En prime, si le
-        // snapshot vient du SERVEUR (pas du cache), on re-pousse l'état local
-        // pour remettre le serveur à niveau (auto-guérison).
+        // GARDE DE FRAÎCHEUR + verrou de saisie — logique pure extraite
+        // dans guards.ts (decideSnapshot), testée unitairement. Le
+        // comportement est identique à la version inline précédente.
         const local = dataRef.current;
-        const incomingAt = base.updatedAt ?? 0;
-        const localAt = local?.updatedAt ?? 0;
-        if (local && incomingAt < localAt) {
-          if (snap.metadata.fromCache === false && !snap.metadata.hasPendingWrites) {
-            console.log(
-              `Serveur en retard (${incomingAt} < ${localAt}) : re-poussée des données locales.`
-            );
-            scheduleSave(ref, local);
-          }
+        const decision = decideSnapshot({
+          localDirty: localDirty.current,
+          hasLocalData: local !== null,
+          localUpdatedAt: local?.updatedAt ?? 0,
+          incomingUpdatedAt: base.updatedAt ?? 0,
+          fromCache: snap.metadata.fromCache,
+          hasPendingWrites: snap.metadata.hasPendingWrites,
+        });
+        if (decision === 'ignore-dirty' || decision === 'ignore-stale') return;
+        if (decision === 'repush-local') {
+          console.log(
+            `Serveur en retard (${base.updatedAt ?? 0} < ${local?.updatedAt ?? 0}) : re-poussée des données locales.`
+          );
+          if (local) scheduleSave(ref, local);
           return;
         }
 

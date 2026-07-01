@@ -122,15 +122,20 @@ export function DayPanel({ data, update, dayKey }: DayPanelProps) {
   // (ou un snapshot intercalé) d'annuler le tap précédent.
   const habitChecked = (id: string) => (id in optHabits ? optHabits[id] : !!dh[id]);
   const setHabit = (id: string) => {
-    const next = !habitChecked(id);
-    setOptHabits((o) => ({ ...o, [id]: next })); // réponse visuelle immédiate
+    // Le toggle est calculé DANS l'updater, depuis prev (jamais depuis les
+    // variables figées du render). update() étant synchrone sur dataRef,
+    // nextVal est connu avant setOptHabits — l'optimisme reflète exactement
+    // la valeur écrite, même sur des taps très rapprochés.
+    let nextVal = false;
     update((prev) => {
       const cur = prev.days[dayKey] || {};
       const curH = cur.habits && !Array.isArray(cur.habits) ? cur.habits : {};
+      nextVal = !curH[id];
       const d = { ...(prev.days || {}) };
-      d[dayKey] = { ...cur, habits: { ...curH, [id]: next } };
+      d[dayKey] = { ...cur, habits: { ...curH, [id]: nextVal } };
       return { days: d };
     });
+    setOptHabits((o) => ({ ...o, [id]: nextVal })); // réponse visuelle immédiate
   };
   const addTodo = () => {
     const text = newTodo.trim();
@@ -288,7 +293,7 @@ export function DayPanel({ data, update, dayKey }: DayPanelProps) {
               key={it.id}
               onClick={() => setHabit(it.id)}
               className="w-full flex items-center gap-2 px-2.5 py-2 text-left"
-              style={{ background: i % 2 ? C.night : C.surf2 }}
+              style={{ background: i % 2 ? C.night : C.surf2, touchAction: 'manipulation' }}
             >
               <div
                 className="rounded-full flex items-center justify-center flex-shrink-0"
@@ -430,7 +435,7 @@ export function DayPanel({ data, update, dayKey }: DayPanelProps) {
               <button
                 onClick={() => toggleTodo(t.id)}
                 className="w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0"
-                style={{ background: t.done ? dawn : 'transparent', border: t.done ? 'none' : `2px solid ${C.surf2}` }}
+                style={{ background: t.done ? dawn : 'transparent', border: t.done ? 'none' : `2px solid ${C.surf2}`, touchAction: 'manipulation' }}
               >
                 {t.done && <Icon name="check" size={14} color="#1A1206" strokeWidth={3} />}
               </button>

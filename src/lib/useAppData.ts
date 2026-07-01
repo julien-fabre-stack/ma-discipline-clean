@@ -303,25 +303,37 @@ export function useAppData(uid: string | null): UseAppDataResult {
     };
   }, [uid, scheduleSave, flushNow]);
 
+  /**
+   * SYNCHRONE sur dataRef — correctif de la course « coche annulée ».
+   * Avant : les effets de bord (dataRef, localDirty via scheduleSave)
+   * vivaient DANS l'updater setData(prev => …), que React exécute en
+   * différé. Fenêtre de course : un snapshot Firestore arrivant entre
+   * l'appel à update() et l'exécution de l'updater voyait localDirty=false
+   * → accepté → setData(base) écrasait la modification en file d'attente
+   * (la case cochée « se décochait toute seule » sur taps rapides).
+   * Maintenant : dataRef est la source de vérité synchrone. Le verrou
+   * localDirty est posé AVANT qu'un snapshot ne puisse s'intercaler, et
+   * deux taps rapprochés lisent chacun l'état le plus récent.
+   */
   const update = useCallback((patch: AppDataPatch) => {
-    setData((prev) => {
-      if (!prev) return prev;
-      const resolved = typeof patch === 'function' ? patch(prev) : patch;
-      // Convention : si l'updater renvoie `prev` tel quel, c'est un no-op
-      // (rien à écrire). On évite ainsi une écriture Firestore inutile.
-      if (resolved === prev) return prev;
-      // Horodatage de fraîcheur : chaque modification locale date l'état.
-      const next: AppData = { ...prev, ...resolved, updatedAt: Date.now() };
-      dataRef.current = next;
-      const ref = docRef.current;
-      if (ref) {
-        scheduleSave(ref, next);
-      } else if (uidRef.current) {
-        const ok = saveLocal(uidRef.current, next);
-        if (!ok) setLocalCacheError(true);
-      }
-      return next;
-    });
+    const prev = dataRef.current;
+    if (!prev) return;
+    const resolved = typeof patch === 'function' ? patch(prev) : patch;
+    // Convention : si l'updater renvoie `prev` tel quel, c'est un no-op
+    // (rien à écrire). On évite ainsi une écriture Firestore inutile.
+    if (resolved === prev) return;
+    // Horodatage de fraîcheur : chaque modification locale date l'état.
+    const next: AppData = { ...prev, ...resolved, updatedAt: Date.now() };
+    dataRef.current = next;
+    localDirty.current = true; // verrou posé immédiatement, pas au prochain render
+    setData(next);
+    const ref = docRef.current;
+    if (ref) {
+      scheduleSave(ref, next);
+    } else if (uidRef.current) {
+      const ok = saveLocal(uidRef.current, next);
+      if (!ok) setLocalCacheError(true);
+    }
   }, [scheduleSave]);
 
   return { data, update, pendingWrites, archiveError, localCacheError, syncError };

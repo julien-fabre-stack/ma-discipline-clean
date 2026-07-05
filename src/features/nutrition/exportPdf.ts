@@ -2,7 +2,7 @@ import type { AppData, Exercise } from '@/types';
 import type { DayTotals, Macros } from '@/lib/nutrition';
 import { parseKey, addDays, dateKey } from '@/lib/utils';
 import { dayType, workoutsForDay } from '@/lib/workouts';
-import { dayTotals } from '@/lib/nutrition';
+import { dayTotals, macrosOf } from '@/lib/nutrition';
 
 export function exportNutritionPDF(
   data: AppData,
@@ -88,7 +88,10 @@ export function exportForClaude(data: AppData, startKey: string, endKey: string)
 
   const dayLines: string[] = [];
   let totalKcal = 0, totalP = 0, totalC = 0, totalF = 0;
-  let loggedCount = 0, sportCount = 0, habitTotal = 0, habitMax = 0;
+  let loggedCount = 0, sportCount = 0;
+  // Agrégat des aliments consommés sur la période : id → quantité totale.
+  // Permet à l'analyse (Claude) de relier les macros aux aliments réels.
+  const foodQty = new Map<string, number>();
 
   for (const k of days) {
     if (k > today) continue;
@@ -101,13 +104,17 @@ export function exportForClaude(data: AppData, startKey: string, endKey: string)
     const dt = dayTotals(data, k);
     const dayEntry = data.days?.[k] || {};
     const habits = dayEntry.habits && !Array.isArray(dayEntry.habits) ? dayEntry.habits : {};
-    const allHabits = data.habits || [];
-    const habitDone = allHabits.filter((h) => habits[h.id]).length;
 
     const sportDone = Boolean(habits['sport']);
     if (sportDone) sportCount++;
-    habitTotal += habitDone;
-    habitMax += allHabits.length;
+
+    // Cumul des quantités d'aliments du jour (tous repas confondus).
+    const dayMeals: Partial<Record<string, { id: string; qty: number }[]>> = dayEntry.meals || {};
+    for (const arr of Object.values(dayMeals)) {
+      for (const e of arr || []) {
+        foodQty.set(e.id, (foodQty.get(e.id) || 0) + e.qty);
+      }
+    }
 
     const wods = workoutsForDay(data, k);
     const wodNames: string[] = [];
@@ -131,7 +138,7 @@ export function exportForClaude(data: AppData, startKey: string, endKey: string)
     } else {
       line += `\nNutrition : non renseignée`;
     }
-    line += `\nSport : ${sportDone ? '✓' : '✗'} | Habitudes : ${habitDone}/${allHabits.length}`;
+    line += `\nSport : ${sportDone ? '✓' : '✗'}`;
     dayLines.push(line);
   }
 
@@ -140,7 +147,24 @@ export function exportForClaude(data: AppData, startKey: string, endKey: string)
   const avgC = loggedCount ? Math.round(totalC / loggedCount) : 0;
   const avgF = loggedCount ? Math.round(totalF / loggedCount) : 0;
   const activeDays = days.filter((k) => k <= today).length;
-  const habitAvg = activeDays ? `${Math.round((habitTotal / activeDays) * 10) / 10}/${data.habits?.length || 0}` : '-';
+
+  // Liste des aliments consommés sur la période, quantités totales + macros,
+  // triée par apport calorique décroissant (les gros contributeurs d'abord).
+  const allFoods = data.customFoods || [];
+  const foodLines = Array.from(foodQty.entries())
+    .map(([id, qty]) => {
+      const f = allFoods.find((x) => x.id === id);
+      if (!f) return null;
+      const m = macrosOf(f, qty);
+      const qtyLabel = f.unit === 'g' ? `${Math.round(qty)} g` : `${qty}×`;
+      return {
+        kcal: m.kcal,
+        text: `- ${f.name} : ${qtyLabel} · ${Math.round(m.kcal)} kcal · P ${Math.round(m.p)}g / G ${Math.round(m.c)}g / L ${Math.round(m.f)}g`,
+      };
+    })
+    .filter((x): x is { kcal: number; text: string } => x !== null)
+    .sort((a, b) => b.kcal - a.kcal)
+    .map((x) => x.text);
 
   const startLabel = parseKey(startKey).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' });
   const endLabel = parseKey(endKey).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' });
@@ -164,8 +188,7 @@ ${dayLines.join('\n')}
 Calories moy (jours renseignés) : ${avgKcal} kcal
 Protéines moy : ${avgP}g | Glucides moy : ${avgC}g | Lipides moy : ${avgF}g
 Sport : ${sportCount}/${activeDays} jours
-Habitudes moy : ${habitAvg}
-${annexLines.length ? `\n=== ANNEXE — CONTENU DES WORKOUTS ===${annexLines.join('\n')}` : ''}
+${foodLines.length ? `\n=== ALIMENTS CONSOMMÉS SUR LA PÉRIODE (quantités totales) ===\n${foodLines.join('\n')}\n` : ''}${annexLines.length ? `\n=== ANNEXE — CONTENU DES WORKOUTS ===${annexLines.join('\n')}` : ''}
 
 ---
 Généré par Ma Discipline · ${new Date().toLocaleDateString('fr-FR')}`;

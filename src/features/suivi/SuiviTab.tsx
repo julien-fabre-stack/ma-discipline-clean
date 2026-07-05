@@ -164,7 +164,14 @@ export function SuiviTab({ data, update, today, openSettings }: SuiviTabProps) {
       const dayData = data.days[k] || {};
       const dayTodos: { done: boolean }[] = dayData.todos || [];
       const hasOpenTodos = dayTodos.some((t) => !t.done);
-      const evtColors = evts.slice(0, 2).map((e) => e.color || '#FFC24B');
+      // La couleur affichée est TOUJOURS celle de la catégorie (rdvTypes) si le
+      // RDV en a une : ainsi, changer la couleur d'une catégorie dans les
+      // réglages se répercute immédiatement sur tous les RDV existants.
+      // e.color (figée à la création) ne sert que de repli pour les RDV sans
+      // catégorie ou dont la catégorie a été supprimée.
+      const evtColors = evts
+        .slice(0, 2)
+        .map((e) => (e.typeId && rdvTypes.find((r) => r.id === e.typeId)?.color) || e.color || '#FFC24B');
       const actColors = activities.map((a) =>
         dayActs.some((x) => x.id === a.id) ? a.color : 'transparent'
       );

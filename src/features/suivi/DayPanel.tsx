@@ -324,13 +324,16 @@ export function DayPanel({ data, update, dayKey }: DayPanelProps) {
           {evts.map((e, i) => {
             const rt = rdvTypes.find((x) => x.id === e.typeId);
             const sub = [rt && rt.label, e.time].filter(Boolean).join(' · ');
+            // Couleur vivante : celle de la catégorie si elle existe encore,
+            // sinon la couleur figée sur l'événement (RDV sans catégorie).
+            const dotColor = rt?.color || e.color || RDV_COLORS[0];
             return (
               <div
                 key={e.id}
                 className="flex items-center gap-2 px-3 py-2.5"
                 style={{ borderTop: i > 0 ? `1px solid ${C.line}` : 'none' }}
               >
-                <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ background: e.color || RDV_COLORS[0] }} />
+                <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ background: dotColor }} />
                 <div className="flex-1 min-w-0">
                   <div className="text-sm">{e.label}</div>
                   {sub && (

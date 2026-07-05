@@ -292,10 +292,13 @@ function AuthedApp({
      )}
      </div>
 
+     {/* zIndex 60 > Settings (z-50) : la barre d'onglets reste visible et
+         tappable même quand les réglages sont ouverts — taper un onglet
+         ferme les réglages et bascule directement sur la page voulue. */}
      <div
        className="fixed bottom-0 left-0 right-0 flex"
        style={{
-         zIndex: 30,
+         zIndex: 60,
          background: hexA(C.night, navAlpha),
          backdropFilter: `blur(${navAlpha < 1 ? 20 : 0}px)`,
          WebkitBackdropFilter: `blur(${navAlpha < 1 ? 20 : 0}px)`,
@@ -306,7 +309,7 @@ function AuthedApp({
        {TABS.map(([k, label, icon]) => (
          <button
            key={k}
-           onClick={() => setTab(k)}
+           onClick={() => { setTab(k); setSettingsOpen(false); }}
            className="flex-1 flex flex-col items-center gap-1 py-3"
            style={{ color: tab === k ? C.ember : C.dim }}
          >

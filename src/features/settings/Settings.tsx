@@ -87,7 +87,16 @@ export function Settings({ data, update, onClose, onLogout, online, pendingWrite
     : 'Synchronisé';
 
   return (
-    <div className="fixed inset-0 z-50 flex flex-col" style={{ background: C.night, color: C.text }}>
+    <div
+      className="fixed inset-0 z-50 flex flex-col"
+      style={{
+        background: C.night,
+        color: C.text,
+        // La barre d'onglets (z-60) reste visible par-dessus les réglages :
+        // on réserve sa hauteur pour que le bas du contenu reste accessible.
+        paddingBottom: 'calc(env(safe-area-inset-bottom) + 64px)',
+      }}
+    >
       <div
         className="flex items-center gap-2 px-4 pb-3"
         style={{ borderBottom: `1px solid ${C.line}`, paddingTop: 'calc(env(safe-area-inset-top) + 20px)' }}

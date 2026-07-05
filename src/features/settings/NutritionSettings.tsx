@@ -81,6 +81,8 @@ function ComboEditRow({
   const { C } = useTheme();
   const [open, setOpen] = useState(false);
   const [name, setName] = useState(combo.name);
+  const [addQ, setAddQ] = useState('');
+  const [addingFood, setAddingFood] = useState(false);
 
   const updateItem = (idx: number, qty: number) => {
     const items = [...combo.items];
@@ -93,6 +95,26 @@ function ComboEditRow({
     const items = combo.items.filter((_, i) => i !== idx);
     onChange({ items });
   };
+
+  // Ajout d'un nouvel aliment au combo depuis la bibliothèque. Si l'aliment
+  // est déjà présent, on incrémente sa quantité au lieu de créer un doublon.
+  const addFood = (food: Food) => {
+    const idx = combo.items.findIndex((it) => it.id === food.id);
+    const step = food.unit === 'g' ? 100 : 1;
+    const items =
+      idx >= 0
+        ? combo.items.map((it, i) => (i === idx ? { ...it, qty: it.qty + step } : it))
+        : [...combo.items, { id: food.id, qty: step }];
+    onChange({ items });
+    setAddQ('');
+    setAddingFood(false);
+  };
+
+  const addResults = addingFood
+    ? allFoods
+        .filter((f) => !addQ.trim() || normName(f.name).includes(normName(addQ)))
+        .slice(0, 8)
+    : [];
 
   return (
     <div className="rounded-xl mb-2 overflow-hidden" style={{ background: C.surf2 }}>
@@ -172,6 +194,60 @@ function ComboEditRow({
               </div>
             );
           })}
+
+          {/* Ajouter un nouvel aliment au repas enregistré */}
+          {addingFood ? (
+            <div className="mt-3">
+              <div className="flex gap-2 mb-2">
+                <input
+                  autoFocus
+                  value={addQ}
+                  onChange={(e) => setAddQ(e.target.value)}
+                  placeholder="Rechercher un aliment…"
+                  className="flex-1 px-3 py-2 rounded-lg outline-none text-sm"
+                  style={{ background: C.surf, color: C.text }}
+                />
+                <button
+                  onClick={() => { setAddingFood(false); setAddQ(''); }}
+                  className="px-3 py-2 rounded-lg text-xs font-semibold"
+                  style={{ background: C.surf, color: C.dim }}
+                >
+                  Annuler
+                </button>
+              </div>
+              <div className="rounded-lg overflow-hidden" style={{ background: C.surf }}>
+                {addResults.length === 0 && (
+                  <div className="px-3 py-2 text-xs" style={{ color: C.dim }}>
+                    Aucun aliment trouvé dans ta bibliothèque.
+                  </div>
+                )}
+                {addResults.map((f, i) => (
+                  <button
+                    key={f.id}
+                    onClick={() => addFood(f)}
+                    className="w-full flex items-center gap-2 px-3 py-2 text-left"
+                    style={{ borderTop: i > 0 ? `1px solid ${C.line}` : 'none' }}
+                  >
+                    <div className="flex-1 min-w-0">
+                      <div className="text-xs truncate">{f.name}</div>
+                      <div className="text-[10px]" style={{ color: C.dim }}>
+                        {f.kcal} kcal /{f.unit === 'g' ? '100 g' : 'pièce'}
+                      </div>
+                    </div>
+                    <Icon name="plus" size={13} color={C.gold} />
+                  </button>
+                ))}
+              </div>
+            </div>
+          ) : (
+            <button
+              onClick={() => setAddingFood(true)}
+              className="w-full mt-3 py-2 rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5"
+              style={{ background: C.surf, color: C.gold }}
+            >
+              <Icon name="plus" size={13} /> Ajouter un aliment
+            </button>
+          )}
         </div>
       )}
     </div>

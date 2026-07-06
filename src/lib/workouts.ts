@@ -23,6 +23,20 @@ export function workoutIdsForDay(data: AppData, k: string): string[] {
   return Array.isArray(v) ? v : [v];
 }
 
+/**
+ * Type de jour DÉRIVÉ DU PLANNING RÉEL (weekTemplate), et non plus de la
+ * semaine codée en dur. AVANT : les objectifs caloriques (Nutrition, bilans,
+ * exports) restaient calés sur lun/mar/jeu/ven = séance même si l'utilisateur
+ * avait déplacé ses jours d'entraînement dans les réglages.
+ * Règle : jour avec au moins un workout planifié → 'train' ; sinon on garde
+ * la convention historique (mercredi = récup, week-end/sans séance = repos).
+ * Avec le template par défaut, le comportement est strictement identique.
+ */
+export function dayTypeFor(data: AppData, k: string): DayType {
+  if (workoutIdsForDay(data, k).length > 0) return 'train';
+  return parseKey(k).getDay() === 3 ? 'recup' : 'repos';
+}
+
 export function workoutsForDay(data: AppData, k: string): Workout[] {
   const ws = getWorkouts(data);
   return workoutIdsForDay(data, k)

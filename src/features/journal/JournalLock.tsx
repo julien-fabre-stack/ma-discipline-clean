@@ -5,7 +5,7 @@ import { useJournalSession } from './JournalSession';
 
 export interface JournalLockProps {
   uid: string;
-  onPinCreated: (verifier: { iv: string; ct: string }) => void;
+  onPinCreated: (verifier: { iv: string; ct: string }, kdfIter: number) => void;
 }
 
 export function JournalLock({ uid, onPinCreated }: JournalLockProps) {
@@ -32,8 +32,8 @@ export function JournalLock({ uid, onPinCreated }: JournalLockProps) {
     setBusy(true);
     try {
       if (creating) {
-        const verifier = await createPin(pin, uid);
-        onPinCreated(verifier);
+        const { verifier, kdfIter } = await createPin(pin, uid);
+        onPinCreated(verifier, kdfIter);
       } else {
         const ok = await unlock(pin, uid);
         if (!ok) {
@@ -65,13 +65,12 @@ export function JournalLock({ uid, onPinCreated }: JournalLockProps) {
       </h2>
       <p className="text-sm text-center mb-6" style={{ color: C.dim, maxWidth: 320 }}>
         {creating
-          ? 'Choisis un code secret. Tes entrées seront chiffrées : personne ne pourra les lire sans ce code.'
+          ? 'Choisis un code secret — de préférence une PHRASE (plusieurs mots) : un code court de 4 chiffres se devine en quelques secondes. Tes entrées seront chiffrées : personne ne pourra les lire sans ce code.'
           : 'Saisis ton code pour déchiffrer et lire tes entrées.'}
       </p>
 
       <input
         type="password"
-        inputMode="numeric"
         autoFocus
         value={pin}
         onChange={(e) => setPin(e.target.value)}
@@ -84,7 +83,6 @@ export function JournalLock({ uid, onPinCreated }: JournalLockProps) {
       {creating && (
         <input
           type="password"
-          inputMode="numeric"
           value={pin2}
           onChange={(e) => setPin2(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && submit()}

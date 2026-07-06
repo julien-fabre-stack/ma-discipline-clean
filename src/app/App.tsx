@@ -3,7 +3,7 @@ import { onAuthStateChanged, signOut, type User } from 'firebase/auth';
 import { auth, firebaseReady } from '@/lib/firebase';
 import { useAppData, type AppDataPatch } from '@/lib/useAppData';
 import { useOnlineStatus } from '@/lib/useOnlineStatus';
-import { dateKey } from '@/lib/utils';
+import { useToday } from '@/lib/useToday';
 import { expandSession, getWorkouts, workoutForDay } from '@/lib/workouts';
 import { ThemeProvider, useTheme } from '@/shared/theme/ThemeProvider';
 import { ConfirmProvider, Icon } from '@/shared/ui';
@@ -77,7 +77,10 @@ function AuthedApp({
  const [wod, setWod] = useState<Wod | null>(null);
  const [settingsOpen, setSettingsOpen] = useState(false);
 
- const today = dateKey();
+ // Date du jour RÉACTIVE : suit le passage de minuit et le retour au premier
+ // plan (avant : dateKey() au render → écritures sur la veille si la PWA
+ // restait ouverte plusieurs jours).
+ const today = useToday();
  const todayWorkout = workoutForDay(data, today);
  const runnerWorkout = runner
    ? getWorkouts(data).find((w) => w.id === runner.wid) || todayWorkout
@@ -103,7 +106,7 @@ function AuthedApp({
  const navAlpha = data.navAlpha == null ? 0.92 : data.navAlpha;
 
  return (
-   <JournalSessionProvider verifier={data.journalMeta?.verifier ?? null}>
+   <JournalSessionProvider meta={data.journalMeta ?? null}>
    <div
      style={{
        background: 'transparent',

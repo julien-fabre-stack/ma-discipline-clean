@@ -1,8 +1,46 @@
 import type { AppData, Exercise } from '@/types';
 import type { DayTotals, Macros } from '@/lib/nutrition';
 import { parseKey, addDays, dateKey } from '@/lib/utils';
-import { dayType, workoutsForDay } from '@/lib/workouts';
+import { dayTypeFor, workoutsForDay } from '@/lib/workouts';
 import { dayTotals, macrosOf } from '@/lib/nutrition';
+
+/** Échappe les caractères HTML d'une valeur utilisateur avant interpolation. */
+function escapeHtml(v: string): string {
+  return v
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+/**
+ * Impression via iframe caché + srcdoc, à la place de window.open +
+ * document.write : window.open est fréquemment bloqué en PWA standalone iOS
+ * (popup), et document.write est déprécié. L'iframe s'imprime dans le
+ * contexte de la page, sans popup, puis est retiré.
+ */
+function printHtml(html: string): void {
+  const iframe = document.createElement('iframe');
+  iframe.style.position = 'fixed';
+  iframe.style.right = '0';
+  iframe.style.bottom = '0';
+  iframe.style.width = '0';
+  iframe.style.height = '0';
+  iframe.style.border = '0';
+  iframe.srcdoc = html;
+  iframe.onload = () => {
+    try {
+      iframe.contentWindow?.focus();
+      iframe.contentWindow?.print();
+    } catch (e) {
+      console.warn('Impression impossible :', e);
+    }
+    // Laisse le temps au dialogue d'impression de capturer le contenu.
+    setTimeout(() => iframe.remove(), 60_000);
+  };
+  document.body.appendChild(iframe);
+}
 
 export function exportNutritionPDF(
   data: AppData,
@@ -13,7 +51,7 @@ export function exportNutritionPDF(
   wkLabel: string
 ): void {
   const p = data.profile || {};
-  const name = p.name || 'Utilisateur';
+  const name = escapeHtml(p.name || 'Utilisateur');
   const today = new Date().toLocaleDateString('fr-FR', {
     weekday: 'long', day: 'numeric', month: 'long', year: 'numeric',
   });
@@ -64,8 +102,7 @@ export function exportNutritionPDF(
   <div class="footer">Document généré par Ma Discipline · Point de santé personnel</div>
   </body></html>`;
 
-  const w = window.open('', '_blank');
-  if (w) { w.document.write(html); w.document.close(); w.focus(); setTimeout(() => w.print(), 500); }
+  printHtml(html);
 }
 
 interface WorkoutRef {
@@ -97,7 +134,7 @@ export function exportForClaude(data: AppData, startKey: string, endKey: string)
     if (k > today) continue;
     const d = parseKey(k);
     const label = d.toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short' });
-    const type = dayType(d);
+    const type = dayTypeFor(data, k);
     const typeLabel = type === 'train' ? 'Séance' : type === 'recup' ? 'Récup' : 'Repos';
     const target = targets[type] || targets.train || 2400;
 
@@ -189,6 +226,18 @@ Calories moy (jours renseignés) : ${avgKcal} kcal
 Protéines moy : ${avgP}g | Glucides moy : ${avgC}g | Lipides moy : ${avgF}g
 Sport : ${sportCount}/${activeDays} jours
 ${foodLines.length ? `\n=== ALIMENTS CONSOMMÉS SUR LA PÉRIODE (quantités totales) ===\n${foodLines.join('\n')}\n` : ''}${annexLines.length ? `\n=== ANNEXE — CONTENU DES WORKOUTS ===${annexLines.join('\n')}` : ''}
+
+=== CONSIGNE POUR CLAUDE ===
+Analyse ce bilan (nutrition, régularité sportive, cohérence avec mes objectifs).
+Si tu recommandes d'ajuster mes objectifs caloriques ou d'hydratation, termine
+ta réponse par ce bloc EXACT (une valeur par ligne, uniquement les lignes à
+modifier) — je le collerai dans l'app pour appliquer les ajustements :
+=== AJUSTEMENTS MA DISCIPLINE ===
+train: <kcal jour de séance>
+recup: <kcal jour de récup>
+repos: <kcal jour de repos>
+eau: <litres par jour>
+note: <résumé de ta recommandation en une ligne>
 
 ---
 Généré par Ma Discipline · ${new Date().toLocaleDateString('fr-FR')}`;

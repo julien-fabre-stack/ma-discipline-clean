@@ -101,6 +101,16 @@ export function useAppData(uid: string | null): UseAppDataResult {
   // auquel cas l'écriture serveur n'était jamais mise en file — perdue).
   const pendingPayload = useRef<{ ref: DocumentReference; next: AppData } | null>(null);
   const retryTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // GÉNÉRATION DE SESSION — correctif de la course au changement d'uid.
+  // Incrémentée à chaque démontage/changement d'uid. Toute écriture (setDoc
+  // principal, retry, archivage) capture la génération à son lancement et
+  // s'abandonne si elle ne correspond plus : un setDoc en vol qui échoue
+  // APRÈS un changement d'utilisateur ne peut plus replanifier un retry qui
+  // écrirait les données de l'utilisateur B dans le document de l'utilisateur
+  // A (dataRef.current pointe déjà sur les données du nouvel utilisateur).
+  // L'écriture abandonnée n'est pas perdue : la garde repush-local la
+  // re-poussera à la prochaine session de cet utilisateur.
+  const genRef = useRef(0);
 
   useEffect(() => { dataRef.current = data; }, [data]);
 
@@ -109,16 +119,19 @@ export function useAppData(uid: string | null): UseAppDataResult {
    * Chaque nouvelle écriture annule les tentatives de la précédente (la
    * charge la plus récente contient tout l'état, inutile de rejouer l'ancienne).
    */
-  const commit = useCallback((ref: DocumentReference, next: AppData, attempt = 0) => {
+  const commit = useCallback((ref: DocumentReference, next: AppData, gen: number, attempt = 0) => {
+    if (gen !== genRef.current) return; // session périmée (uid changé) : abandon
     if (retryTimer.current) { clearTimeout(retryTimer.current); retryTimer.current = null; }
     setDoc(ref, stripUndefined(next), { merge: true })
-      .then(() => setSyncError(null))
+      .then(() => { if (gen === genRef.current) setSyncError(null); })
       .catch((e: { code?: string }) => {
+        if (gen !== genRef.current) return; // uid changé pendant le vol : ne
+        // JAMAIS retenter avec dataRef.current (qui appartient au nouvel uid).
         const code = e?.code ?? 'unknown';
         console.warn(`setDoc échoué (tentative ${attempt + 1}) :`, code, e);
         if (attempt < RETRY_DELAYS_MS.length) {
           retryTimer.current = setTimeout(
-            () => commit(ref, dataRef.current ?? next, attempt + 1),
+            () => commit(ref, dataRef.current ?? next, gen, attempt + 1),
             RETRY_DELAYS_MS[attempt]
           );
         } else {
@@ -145,7 +158,7 @@ export function useAppData(uid: string | null): UseAppDataResult {
       saveTimer.current = null;
       localDirty.current = false;
       pendingPayload.current = null;
-      commit(ref, next);
+      commit(ref, next, genRef.current);
     }, SAVE_DEBOUNCE_MS);
   }, [commit]);
 
@@ -156,7 +169,7 @@ export function useAppData(uid: string | null): UseAppDataResult {
     if (saveTimer.current) { clearTimeout(saveTimer.current); saveTimer.current = null; }
     localDirty.current = false;
     pendingPayload.current = null;
-    commit(ref, next);
+    commit(ref, next, genRef.current);
   }, [commit]);
 
   // iOS PWA : quand l'app passe en arrière-plan, les timers JS sont gelés puis
@@ -258,17 +271,26 @@ export function useAppData(uid: string | null): UseAppDataResult {
             (byMonth[m] = byMonth[m] || {})[k] = removed[k];
           });
           if (db) {
+            const gen = genRef.current;
             Object.entries(byMonth).forEach(([m, obj]) => {
               const archiveRef = doc(db!, 'users', uid, 'archive', m);
               const attempt = (retries: number) =>
-                setDoc(archiveRef, stripUndefined(obj), { merge: true }).catch((e) => {
-                  if (retries > 0) {
-                    setTimeout(() => attempt(retries - 1), 5000);
-                  } else {
-                    console.warn('Archivage échoué définitivement pour', m, e);
-                    setArchiveError(m);
-                  }
-                });
+                setDoc(archiveRef, stripUndefined(obj), { merge: true })
+                  .then(() => {
+                    // Un archivage réussi efface la bannière d'erreur : avant,
+                    // setArchiveError(m) n'était JAMAIS remis à null et la
+                    // bannière restait affichée à vie.
+                    if (gen === genRef.current) setArchiveError(null);
+                  })
+                  .catch((e) => {
+                    if (gen !== genRef.current) return; // uid changé : abandon
+                    if (retries > 0) {
+                      setTimeout(() => attempt(retries - 1), 5000);
+                    } else {
+                      console.warn('Archivage échoué définitivement pour', m, e);
+                      setArchiveError(m);
+                    }
+                  });
               attempt(2);
             });
           }
@@ -298,7 +320,12 @@ export function useAppData(uid: string | null): UseAppDataResult {
       unsub();
       // On FLUSH au lieu de jeter : avant, le clearTimeout du cleanup
       // annulait purement et simplement l'écriture en attente.
+      // Le flush part AVANT l'invalidation de génération : il porte encore
+      // la charge utile de CET uid (pendingPayload), donc il est légitime.
       flushNow();
+      // Invalide la session : tout .then/.catch/retry encore en vol pour cet
+      // uid s'abandonnera au lieu d'écrire des données du prochain uid.
+      genRef.current += 1;
       if (retryTimer.current) { clearTimeout(retryTimer.current); retryTimer.current = null; }
     };
   }, [uid, scheduleSave, flushNow]);

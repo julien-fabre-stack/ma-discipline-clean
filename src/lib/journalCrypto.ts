@@ -1,7 +1,18 @@
 const enc = new TextEncoder();
 const dec = new TextDecoder();
 
-const PBKDF2_ITERATIONS = 150_000;
+/**
+ * Itérations PBKDF2, VERSIONNÉES.
+ * - LEGACY (150k) : valeur historique. Les journaux créés avant l'ajout de
+ *   `kdfIter` dans journalMeta ont été chiffrés avec — on DOIT continuer à
+ *   dériver avec 150k pour eux, sinon la clé change et tout devient illisible.
+ * - V2 (310k) : recommandation OWASP actuelle pour PBKDF2-SHA-256, appliquée
+ *   aux nouveaux codes. Le coût n'est payé qu'au déverrouillage (~centaines
+ *   de ms), pas à chaque chiffrement d'entrée.
+ * Un code court reste brute-forçable côté Firestore : préférer une phrase.
+ */
+export const PBKDF2_ITER_LEGACY = 150_000;
+export const PBKDF2_ITER_V2 = 310_000;
 const VERIFIER_PLAIN = 'ma-discipline-journal-ok';
 
 function saltFor(uid: string): ArrayBuffer {
@@ -27,7 +38,11 @@ function b64ToBuf(b64: string): ArrayBuffer {
   return bytes.buffer as ArrayBuffer;
 }
 
-export async function deriveKey(pin: string, uid: string): Promise<CryptoKey> {
+export async function deriveKey(
+  pin: string,
+  uid: string,
+  iterations: number = PBKDF2_ITER_LEGACY
+): Promise<CryptoKey> {
   const baseKey = await crypto.subtle.importKey(
     'raw',
     enc.encode(pin).buffer as ArrayBuffer,
@@ -39,7 +54,7 @@ export async function deriveKey(pin: string, uid: string): Promise<CryptoKey> {
     {
       name: 'PBKDF2',
       salt: saltFor(uid),
-      iterations: PBKDF2_ITERATIONS,
+      iterations,
       hash: 'SHA-256',
     },
     baseKey,

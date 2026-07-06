@@ -1,10 +1,10 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import type { AppData, RunnerStep } from '@/types';
 import { fmt } from '@/lib/utils';
 import { exerciseImageSrc } from '@/lib/exerciseImages';
 import { useTheme } from '@/shared/theme/ThemeProvider';
 import { Icon, Ring } from '@/shared/ui';
-import { useBeep, useWakeLock } from './hooks';
+import { useBeep, useCountdown, useWakeLock } from './hooks';
 
 export interface RunnerProps {
   steps: RunnerStep[];
@@ -32,13 +32,11 @@ function onImgError(e: React.SyntheticEvent<HTMLImageElement>) {
 export function Runner({ steps, startIdx = 0, data, onClose, onProgress, onDone }: RunnerProps) {
   const { C, dawn, hexA, glowShadow } = useTheme();
   const [idx, setIdx] = useState(startIdx);
-  const [remaining, setRemaining] = useState(0);
   const [running, setRunning] = useState(true);
   const [finished, setFinished] = useState(false);
   const [startTime] = useState(() => new Date());
   const [endTime, setEndTime] = useState<Date | null>(null);
   const { ensure, beep } = useBeep();
-  const tickRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const total = steps.length;
   const step = steps[idx];
@@ -54,9 +52,6 @@ export function Runner({ steps, startIdx = 0, data, onClose, onProgress, onDone 
     if (onProgress) onProgress(idx);
   }, [idx]);
   useEffect(() => {
-    if (!step) return;
-    if (step.kind === 'rest' || step.kind === 'timed') setRemaining(step.dur);
-    else setRemaining(0);
     setRunning(true);
   }, [idx]);
 
@@ -70,27 +65,22 @@ export function Runner({ steps, startIdx = 0, data, onClose, onProgress, onDone 
       return ni;
     });
 
-  useEffect(() => {
-    if (tickRef.current) clearInterval(tickRef.current);
-    const isTimer = step && (step.kind === 'rest' || step.kind === 'timed');
-    if (!isTimer || !running) return;
-    tickRef.current = setInterval(() => {
-      setRemaining((r) => {
-        const nr = r - 1;
-        if (nr <= 5 && nr >= 1) beep(820, 0.18);
-        if (nr <= 0) {
-          if (tickRef.current) clearInterval(tickRef.current);
-          beep(440, 0.7);
-          setTimeout(() => advanceIdx(), 100);
-          return 0;
-        }
-        return nr;
-      });
-    }, 1000);
-    return () => {
-      if (tickRef.current) clearInterval(tickRef.current);
-    };
-  }, [idx, running]);
+  // Compte à rebours ancré horloge réelle (voir useCountdown) : survit au
+  // passage en arrière-plan iOS, contrairement à l'ancien setInterval -1.
+  const isTimer = !!step && (step.kind === 'rest' || step.kind === 'timed');
+  const remaining = useCountdown({
+    duration: isTimer ? step.dur : 0,
+    active: isTimer,
+    running,
+    resetKey: idx,
+    onSecond: (s) => {
+      if (s <= 5) beep(820, 0.18);
+    },
+    onEnd: () => {
+      beep(440, 0.7);
+      setTimeout(() => advanceIdx(), 100);
+    },
+  });
 
   const next = () => advanceIdx();
   const prev = () => setIdx((i) => Math.max(i - 1, 0));

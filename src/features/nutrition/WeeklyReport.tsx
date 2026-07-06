@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import type { AppData } from '@/types';
 import { MEALS, MEAL_COLORS } from '@/lib/defaults';
-import { dayType } from '@/lib/workouts';
+import { dayTypeFor } from '@/lib/workouts';
 import { dayTotals, type Macros } from '@/lib/nutrition';
 import { addDays, dateKey, mondayOf, parseKey } from '@/lib/utils';
 import { useTheme } from '@/shared/theme/ThemeProvider';
@@ -42,7 +42,7 @@ export function WeeklyReport({ data, startKey }: WeeklyReportProps) {
   const wkEnd = parseKey(addDays(monday, 6));
   const fmtD = (d: Date) => d.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' });
   const wkLabel = offset === 0 ? 'Cette semaine' : offset === -1 ? 'Semaine dernière' : `Il y a ${-offset} sem.`;
-  const kcalTarget = data.targets?.[dayType()] || data.targets?.train || 2400;
+  const kcalTarget = data.targets?.[dayTypeFor(data, today)] || data.targets?.train || 2400;
   const targetLineH = maxDay > 0 ? Math.min(CH, (kcalTarget / maxDay) * CH) : 0;
 
   const handleCopyForClaude = async () => {

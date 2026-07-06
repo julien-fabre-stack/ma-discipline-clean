@@ -25,3 +25,6 @@ pnpm-debug.log*
 
 vite.config.js
 vite.config.d.ts
+
+# Artefacts de build TypeScript incrémental (ne doivent jamais être commités)
+*.tsbuildinfo

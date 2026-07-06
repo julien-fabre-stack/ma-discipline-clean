@@ -2,7 +2,7 @@ import { useState } from 'react';
 import type { AppData, Combo, Food, MealEntry, MealKey, Meals } from '@/types';
 import type { AppDataPatch } from '@/lib/useAppData';
 import { MEALS } from '@/lib/defaults';
-import { dayType } from '@/lib/workouts';
+import { dayTypeFor } from '@/lib/workouts';
 import { macrosOf, type Macros } from '@/lib/nutrition';
 import { addDays, parseKey, uid } from '@/lib/utils';
 import { useTheme } from '@/shared/theme/ThemeProvider';
@@ -29,7 +29,9 @@ export function NutritionTab({ data, update, today, openSettings }: NutritionTab
   const [saveDraft, setSaveDraft] = useState<MealKey | null>(null);
   const [saveName, setSaveName] = useState('');
 
-  const t = dayType(parseKey(viewKey));
+  // Type de jour dérivé du planning réel (weekTemplate) : les objectifs
+  // caloriques suivent désormais les jours d'entraînement personnalisés.
+  const t = dayTypeFor(data, viewKey);
   const target = data.targets[t];
   const day = data.days[viewKey] || {};
   const meals: Meals = day.meals || EMPTY_MEALS;
@@ -311,7 +313,14 @@ export function NutritionTab({ data, update, today, openSettings }: NutritionTab
                 onClose={() => setPicker(null)}
                 onAddCustom={(f: Food) => update((prev) => ({ customFoods: [...(prev.customFoods || []), f] }))}
                 onPick={(f, q) => {
-                  if (!allFoods.find((x) => x.id === f.id)) update((prev) => ({ customFoods: [...(prev.customFoods || []), { id: f.id, name: f.name, unit: f.unit, kcal: f.kcal, p: f.p, c: f.c, f: f.f }] }));
+                  // Dédoublonnage DANS l'updater (état le plus récent), et non
+                  // plus via allFoods figé au render : deux picks rapprochés du
+                  // même aliment CIQUAL ne créent plus de doublon en bibliothèque.
+                  update((prev) => {
+                    const foods = prev.customFoods || [];
+                    if (foods.some((x) => x.id === f.id)) return prev;
+                    return { customFoods: [...foods, { id: f.id, name: f.name, unit: f.unit, kcal: f.kcal, p: f.p, c: f.c, f: f.f }] };
+                  });
                   addToMeal(picker, { id: f.id, qty: q });
                   setPicker(null);
                 }}

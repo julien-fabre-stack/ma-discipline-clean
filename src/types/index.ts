@@ -198,6 +198,22 @@ export type AnimSpeedId = 'fast' | 'normal' | 'slow' | 'off';
 
 export interface JournalMeta {
   verifier: { iv: string; ct: string };
+  /**
+   * Itérations PBKDF2 utilisées à la création du code. ABSENT sur les
+   * journaux historiques → dériver avec PBKDF2_ITER_LEGACY (150k).
+   * Présent (310k) sur les codes créés depuis le durcissement.
+   */
+  kdfIter?: number;
+}
+
+/** Trace du dernier import « bilan Claude » appliqué aux objectifs. */
+export interface BilanImportInfo {
+  /** Date (clé YYYY-MM-DD) de l'application. */
+  date: string;
+  /** Texte brut collé (pour référence/ré-audit). */
+  raw: string;
+  /** Note libre extraite du bloc, si présente. */
+  note?: string;
 }
 
 // ===== Document principal =====
@@ -234,6 +250,9 @@ export interface AppData {
 
   /** Chiffrement du journal (optionnel tant que pas configuré). */
   journalMeta?: JournalMeta;
+
+  /** Dernier import « bilan Claude » appliqué (réglages nutrition). */
+  lastBilanImport?: BilanImportInfo;
 
   // Apparence
   theme?: ThemeId;

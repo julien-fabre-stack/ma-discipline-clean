@@ -42,7 +42,7 @@ export function JournalTab({
 }: JournalTabProps) {
   const askConfirm = useConfirm();
   const { unlocked, encrypt, decrypt, lock } = useJournalSession();
-  const { entries, loading, saveEntry, deleteEntry } = useJournal(unlocked ? uid : null);
+  const { entries, loading, error: journalError, saveEntry, deleteEntry } = useJournal(unlocked ? uid : null);
 
   const [editDay, setEditDay] = useState<string | null>(null);
   const [previews, setPreviews] = useState<Record<string, DecryptedPreview>>({});
@@ -91,12 +91,14 @@ export function JournalTab({
       body: await encrypt(body),
     };
     if (title) payload.title = await encrypt(title);
-    await saveEntry(date, payload);
+    // saveEntry est désormais non bloquant (fire-and-forget) : il résout
+    // immédiatement même hors-ligne, l'écriture étant durable localement.
+    saveEntry(date, payload);
     setPreviews((p) => ({ ...p, [date]: { title: title || body.trim().slice(0, 60) } }));
   };
 
   const onDelete = async (date: string) => {
-    await deleteEntry(date);
+    deleteEntry(date);
     setPreviews((p) => {
       const n = { ...p };
       delete n[date];
@@ -142,7 +144,7 @@ export function JournalTab({
         }}
       >
         <JournalHeader onSettings={openSettings} onExport={null} onLock={null} exporting={false} />
-        <JournalLock uid={uid} onPinCreated={(verifier) => update({ journalMeta: { verifier } })} />
+        <JournalLock uid={uid} onPinCreated={(verifier, kdfIter) => update({ journalMeta: { verifier, kdfIter } })} />
       </div>
     );
   }
@@ -189,6 +191,16 @@ export function JournalTab({
             Écrire aujourd'hui
           </button>
         </div>
+
+        {journalError && (
+          <div
+            className="mx-4 mb-3 px-4 py-3 text-xs"
+            style={{ background: '#FBEDE9', border: `1px solid ${J.accent}`, color: J.accent, borderRadius: 2, fontFamily: J.serif }}
+          >
+            ⚠️ Problème de synchronisation du journal ({journalError}). Tes
+            entrées restent enregistrées sur cet appareil.
+          </div>
+        )}
 
         {loading && (
           <div className="text-center py-8 text-sm" style={{ color: J.dim, fontFamily: J.serif }}>

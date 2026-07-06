@@ -1,11 +1,11 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import type { Wod } from '@/types';
 import { fmt } from '@/lib/utils';
 import { exerciseImageSrc } from '@/lib/exerciseImages';
 import { useTheme } from '@/shared/theme/ThemeProvider';
 import { Icon, Ring } from '@/shared/ui';
 import { ExerciseImg } from '@/shared/ui/ExerciseImg';
-import { useBeep, useWakeLock } from './hooks';
+import { useBeep, useCountdown, useWakeLock } from './hooks';
 
 export interface WodRunnerProps {
   wod: Wod;
@@ -23,20 +23,16 @@ export function WodRunner({ wod, onClose, onDone }: WodRunnerProps) {
   const transitionDur = wod.transitionDur || 10;
   const cur = items[idx];
   const next = items[idx + 1] || null;
-  const [sec, setSec] = useState(cur ? cur.dur || 20 : transitionDur);
   const [run, setRun] = useState(false);
   const { ensure, beep } = useBeep();
-  const tickRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useWakeLock(true);
   useEffect(() => {
     ensure();
   }, []);
 
-  // Initialise le compte à rebours à chaque changement de phase/exercice.
+  // Lance/arrête le compte à rebours à chaque changement de phase/exercice.
   useEffect(() => {
-    if (phase === 'exercise' && cur) setSec(cur.dur || 20);
-    else if (phase === 'transition') setSec(transitionDur);
     setRun(phase === 'exercise' || phase === 'transition');
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [phase, idx]);
@@ -51,37 +47,32 @@ export function WodRunner({ wod, onClose, onDone }: WodRunnerProps) {
     setPhase('exercise');
   };
 
-  useEffect(() => {
-    if (tickRef.current) clearInterval(tickRef.current);
-    const isTimer = phase === 'exercise' || phase === 'transition';
-    if (!isTimer || !run) return;
-    tickRef.current = setInterval(() => {
-      setSec((s) => {
-        const nr = s - 1;
-        if (nr <= 3 && nr >= 1) beep(820, 0.09);
-        if (nr <= 0) {
-          if (tickRef.current) clearInterval(tickRef.current);
-          beep(440, 0.5);
-          if (phase === 'exercise') {
-            // Place de transition avant le prochain exercice, sauf si c'était le dernier.
-            if (idx + 1 >= items.length) {
-              setTimeout(() => onDone(), 100);
-            } else {
-              setTimeout(() => setPhase('transition'), 100);
-            }
-          } else {
-            setTimeout(() => goNextExercise(), 100);
-          }
-          return 0;
+  // Compte à rebours ancré horloge réelle (voir useCountdown) : survit au
+  // passage en arrière-plan iOS, contrairement à l'ancien setInterval -1.
+  const isTimer = phase === 'exercise' || phase === 'transition';
+  const timerDur = phase === 'exercise' ? (cur ? cur.dur || 20 : 20) : transitionDur;
+  const sec = useCountdown({
+    duration: isTimer ? timerDur : 0,
+    active: isTimer,
+    running: run,
+    resetKey: `${phase}:${idx}`,
+    onSecond: (s) => {
+      if (s <= 3) beep(820, 0.09);
+    },
+    onEnd: () => {
+      beep(440, 0.5);
+      if (phase === 'exercise') {
+        // Phase de transition avant le prochain exercice, sauf si c'était le dernier.
+        if (idx + 1 >= items.length) {
+          setTimeout(() => onDone(), 100);
+        } else {
+          setTimeout(() => setPhase('transition'), 100);
         }
-        return nr;
-      });
-    }, 1000);
-    return () => {
-      if (tickRef.current) clearInterval(tickRef.current);
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [phase, run, idx]);
+      } else {
+        setTimeout(() => goNextExercise(), 100);
+      }
+    },
+  });
 
   if (!items.length) {
     return (

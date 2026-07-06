@@ -1,7 +1,8 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import type { AppData, Combo, Food, NutritionTargets } from '@/types';
 import type { AppDataPatch } from '@/lib/useAppData';
-import { dateKey, normName } from '@/lib/utils';
+import { dateKey, normName, parseKey } from '@/lib/utils';
+import { describeAdjustments, parseBilanAdjustments } from '@/lib/bilanImport';
 import { useTheme } from '@/shared/theme/ThemeProvider';
 import { Collapsible, Icon, useConfirm } from '@/shared/ui';
 import { CustomFood } from '../nutrition/CustomFood';
@@ -254,7 +255,7 @@ function ComboEditRow({
   );
 }
 
-type Section = 'targets' | 'foods' | 'combos' | 'alcool' | null;
+type Section = 'targets' | 'foods' | 'combos' | 'alcool' | 'claude' | null;
 
 export function NutritionSettings({ data, update }: NutritionSettingsProps) {
   const { C, cardShadow } = useTheme();
@@ -283,6 +284,45 @@ export function NutritionSettings({ data, update }: NutritionSettingsProps) {
     update((prev) => ({ combos: (prev.combos || []).map((c) => (c.id === id ? { ...c, ...patch } : c)) }));
 
   const shown = q.trim() ? foods.filter((f) => normName(f.name).includes(normName(q))) : foods;
+
+  // --- Import « bilan Claude » ---
+  // L'export pour Claude (onglet Rapports) demande à Claude de terminer sa
+  // réponse par un bloc « === AJUSTEMENTS MA DISCIPLINE === ». On colle ici
+  // la réponse (entière ou juste le bloc), on prévisualise ce qui a été
+  // compris, puis on applique aux objectifs après confirmation.
+  const [bilanText, setBilanText] = useState('');
+  const [bilanApplied, setBilanApplied] = useState(false);
+  const parsed = useMemo(
+    () => (bilanText.trim() ? parseBilanAdjustments(bilanText) : null),
+    [bilanText]
+  );
+  const parsedLines = parsed ? describeAdjustments(parsed) : [];
+
+  const applyBilan = async () => {
+    if (!parsed || parsedLines.length === 0) return;
+    const ok = await askConfirm({
+      title: 'Appliquer les ajustements',
+      message: `${parsedLines.join(' · ')}. Remplacer tes objectifs actuels ?`,
+    });
+    if (!ok) return;
+    const raw = bilanText;
+    const note = parsed.note;
+    update((prev) => ({
+      targets: {
+        ...prev.targets,
+        ...(parsed.train !== undefined ? { train: parsed.train } : {}),
+        ...(parsed.recup !== undefined ? { recup: parsed.recup } : {}),
+        ...(parsed.repos !== undefined ? { repos: parsed.repos } : {}),
+        ...(parsed.water !== undefined ? { water: parsed.water } : {}),
+      },
+      lastBilanImport: { date: dateKey(), raw, ...(note ? { note } : {}) },
+    }));
+    setBilanText('');
+    setBilanApplied(true);
+    setTimeout(() => setBilanApplied(false), 3000);
+  };
+
+  const lastImport = data.lastBilanImport;
 
   const calRows: [keyof NutritionTargets, string][] = [
     ['train', 'Jour de séance'],
@@ -322,6 +362,51 @@ export function NutritionSettings({ data, update }: NutritionSettingsProps) {
               <span className="text-xs" style={{ color: C.dim }}>L</span>
             </div>
           </div>
+        </div>
+      </Collapsible>
+
+      <Collapsible title="Import bilan Claude" open={open === 'claude'} onToggle={() => toggle('claude')}>
+        <div className="rounded-2xl p-4 mb-2" style={{ background: C.surf, border: `1px solid ${C.line}`, boxShadow: cardShadow() }}>
+          <div className="text-xs mb-3" style={{ color: C.dim, lineHeight: 1.5 }}>
+            Colle ici la réponse de Claude à ton bilan (onglet Nutrition →
+            Rapports → Export pour Claude). Le bloc «&nbsp;AJUSTEMENTS MA
+            DISCIPLINE&nbsp;» sera détecté et appliqué à tes objectifs.
+          </div>
+          <textarea
+            value={bilanText}
+            onChange={(e) => setBilanText(e.target.value)}
+            placeholder={'=== AJUSTEMENTS MA DISCIPLINE ===\ntrain: 2300\nrecup: 2000\nrepos: 1750\neau: 2.5\nnote: …'}
+            rows={6}
+            className="w-full px-3 py-2.5 rounded-xl outline-none text-sm resize-none mb-2"
+            style={{ background: C.surf2, color: C.text, border: `1px solid ${C.line}`, fontFamily: 'ui-monospace, monospace', fontSize: 12, lineHeight: 1.5 }}
+          />
+          {bilanText.trim() && !parsed && (
+            <div className="text-xs mb-2" style={{ color: C.ember }}>
+              Aucun ajustement reconnu dans ce texte. Vérifie que le bloc
+              «&nbsp;train: …&nbsp;», «&nbsp;repos: …&nbsp;» est bien présent.
+            </div>
+          )}
+          {parsedLines.length > 0 && (
+            <div className="rounded-xl px-3 py-2.5 mb-2 text-xs" style={{ background: C.surf2, border: `1px solid ${C.line}`, color: C.text, lineHeight: 1.7 }}>
+              <div className="text-[10px] uppercase tracking-wider mb-1" style={{ color: C.gold }}>Ajustements détectés</div>
+              {parsedLines.map((l) => <div key={l}>{l}</div>)}
+              {parsed?.note && <div className="mt-1 italic" style={{ color: C.dim }}>« {parsed.note} »</div>}
+            </div>
+          )}
+          <button
+            onClick={applyBilan}
+            disabled={parsedLines.length === 0}
+            className="w-full py-2.5 rounded-xl text-sm font-semibold"
+            style={{ background: parsedLines.length ? C.ember : C.surf2, color: parsedLines.length ? '#1A1206' : C.dim, opacity: parsedLines.length ? 1 : 0.7 }}
+          >
+            {bilanApplied ? '✓ Objectifs mis à jour' : 'Appliquer aux objectifs'}
+          </button>
+          {lastImport && (
+            <div className="text-[11px] mt-3" style={{ color: C.dim }}>
+              Dernier import : {parseKey(lastImport.date).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })}
+              {lastImport.note ? ` — « ${lastImport.note} »` : ''}
+            </div>
+          )}
         </div>
       </Collapsible>
 

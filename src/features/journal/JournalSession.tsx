@@ -13,13 +13,17 @@ import {
   deriveKey,
   encryptText,
   makeVerifier,
+  PBKDF2_ITER_LEGACY,
+  PBKDF2_ITER_V2,
   type CipherPayload,
 } from '@/lib/journalCrypto';
+import type { JournalMeta } from '@/types';
 
 interface JournalSessionValue {
   hasPin: boolean;
   unlocked: boolean;
-  createPin: (pin: string, uid: string) => Promise<CipherPayload>;
+  /** Crée le code : retourne le verifier ET les itérations KDF à persister. */
+  createPin: (pin: string, uid: string) => Promise<{ verifier: CipherPayload; kdfIter: number }>;
   unlock: (pin: string, uid: string) => Promise<boolean>;
   lock: () => void;
   encrypt: (plain: string) => Promise<CipherPayload>;
@@ -29,26 +33,31 @@ interface JournalSessionValue {
 const Ctx = createContext<JournalSessionValue | null>(null);
 
 export function JournalSessionProvider({
-  verifier,
+  meta,
   children,
 }: {
-  verifier: CipherPayload | null;
+  meta: JournalMeta | null;
   children: ReactNode;
 }) {
   const keyRef = useRef<CryptoKey | null>(null);
   const [unlocked, setUnlocked] = useState(false);
+  const verifier = meta?.verifier ?? null;
+  // Journaux historiques : kdfIter absent → dérivation LEGACY (150k),
+  // indispensable pour continuer à déchiffrer l'existant.
+  const kdfIter = meta?.kdfIter ?? PBKDF2_ITER_LEGACY;
 
   const createPin = useCallback(async (pin: string, uid: string) => {
-    const key = await deriveKey(pin, uid);
+    const key = await deriveKey(pin, uid, PBKDF2_ITER_V2);
     keyRef.current = key;
     setUnlocked(true);
-    return makeVerifier(key);
+    const v = await makeVerifier(key);
+    return { verifier: v, kdfIter: PBKDF2_ITER_V2 };
   }, []);
 
   const unlock = useCallback(
     async (pin: string, uid: string) => {
       if (!verifier) return false;
-      const key = await deriveKey(pin, uid);
+      const key = await deriveKey(pin, uid, kdfIter);
       const ok = await checkVerifier(key, verifier);
       if (ok) {
         keyRef.current = key;
@@ -56,7 +65,7 @@ export function JournalSessionProvider({
       }
       return ok;
     },
-    [verifier]
+    [verifier, kdfIter]
   );
 
   const lock = useCallback(() => {

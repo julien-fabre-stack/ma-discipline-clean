@@ -329,7 +329,7 @@ export function NutritionTab({ data, update, today, openSettings }: NutritionTab
             )}
           </>
         ) : (
-          <WeeklyReport data={data} startKey={viewKey} />
+          <WeeklyReport data={data} startKey={viewKey} today={today} />
         )}
       </div>
     </div>

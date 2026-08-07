@@ -73,7 +73,7 @@ export function BeginnerQuestionnaire({ embedded = false }: BeginnerQuestionnair
 
   const buildPrompt = (): string => {
     const lignes = QUESTIONS.map((q) => `- ${LABELS[q.id]} : ${answers[q.id] || 'non précisé'}`).join('\n');
-    return `Tu es un coach sportif et nutritionniste expert. Crée-moi un programme d'entraînement (WOD) personnalisé et progressif basé sur mon profil ci-dessous.\n\nMON PROFIL :\n${lignes}\n\nCE QUE JE VEUX :\n1. Un programme d'entraînement hebdomadaire détaillé (jours, exercices, nombre de séries, répétitions et temps de repos entre chaque)\n2. Des conseils nutritionnels simples avec un objectif calorique quotidien indicatif et la répartition des macros (protéines/glucides/lipides)\n3. Des conseils pour bien démarrer et rester motivé\n\nPrésente le programme de façon claire et structurée, exercice par exercice, pour que je puisse le suivre facilement.`;
+    return `Tu es un coach sportif et nutritionniste expert. Crée-moi un programme d'entraînement personnalisé et progressif basé sur mon profil ci-dessous.\n\nMON PROFIL :\n${lignes}\n\nCE QUE JE VEUX :\n1. Un programme d'entraînement hebdomadaire détaillé (jours, exercices, nombre de séries, répétitions et temps de repos entre chaque)\n2. Des conseils nutritionnels simples avec un objectif calorique quotidien indicatif et la répartition des macros (protéines/glucides/lipides)\n3. Des conseils pour bien démarrer et rester motivé\n\nPrésente le programme de façon claire et structurée, exercice par exercice, pour que je puisse le suivre facilement.`;
   };
 
   const copy = () => {

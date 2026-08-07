@@ -14,6 +14,12 @@ type CatBucket = 'statuses' | 'activities' | 'rdvTypes';
 
 const PALETTE = ['#FF7A45', '#FFC24B', '#5BC0FF', '#A78BFA', '#4ADE80', '#FF6FA5', '#34D1BF', '#E5484D'];
 
+const KIND_LABELS: Record<PeriodKind, string> = {
+  status: 'Statut',
+  activity: 'Activité',
+  cycle: 'Cycle sport',
+};
+
 function CatList({
   hint,
   cats,
@@ -66,24 +72,70 @@ function CatList({
   );
 }
 
+/**
+ * Éditeur de période BIMODAL.
+ * - Création : `initial` absent → champs vides, bouton « Ajouter la période ».
+ * - Édition  : `initial` fourni → champs préremplis, bouton « Enregistrer ».
+ *
+ * Le TYPE (statut / activité / cycle) est modifiable dans les deux modes.
+ * Changer de type change le jeu de catégories disponibles : on réinitialise
+ * donc `catId` sur la première catégorie du nouveau type, car conserver un
+ * catId appartenant à l'ancien type produirait une période orpheline
+ * (invisible dans la frise, `labelForPeriod` retomberait sur l'id brut).
+ *
+ * L'appelant DOIT passer une `key` stable (l'id de la période, ou 'new') :
+ * c'est ce qui remonte le composant et réinitialise proprement le state
+ * quand on passe d'une période à une autre.
+ */
 function PeriodEditor({
-  kind,
-  cats,
-  onAdd,
+  initial,
+  defaultKind,
+  catsForKind,
+  onSubmit,
   onCancel,
 }: {
-  kind: PeriodKind;
-  cats: AgendaCategory[];
-  onAdd: (p: Omit<Period, 'id'>) => void;
+  initial?: Period;
+  defaultKind: PeriodKind;
+  catsForKind: (k: PeriodKind) => AgendaCategory[];
+  onSubmit: (p: Omit<Period, 'id'>) => void;
   onCancel: () => void;
 }) {
   const { C, dawn, glowShadow } = useTheme();
-  const [catId, setCatId] = useState(cats[0]?.id || '');
-  const [start, setStart] = useState('');
-  const [end, setEnd] = useState('');
-  const valid = catId && start && end && start <= end;
+  const [kind, setKind] = useState<PeriodKind>(initial?.kind ?? defaultKind);
+  const [catId, setCatId] = useState(initial?.catId ?? catsForKind(initial?.kind ?? defaultKind)[0]?.id ?? '');
+  const [start, setStart] = useState(initial?.start ?? '');
+  const [end, setEnd] = useState(initial?.end ?? '');
+
+  const cats = catsForKind(kind);
+  // La catégorie doit appartenir au type courant, sinon la période serait
+  // orpheline. On valide donc l'appartenance, pas seulement la présence.
+  const catOk = cats.some((c) => c.id === catId);
+  const valid = Boolean(catOk && start && end && start <= end);
+
+  const changeKind = (k: PeriodKind) => {
+    if (k === kind) return;
+    setKind(k);
+    setCatId(catsForKind(k)[0]?.id ?? '');
+  };
+
   return (
-    <div className="rounded-2xl p-4 mb-3" style={{ background: C.surf }}>
+    <div className="rounded-2xl p-4 mb-3" style={{ background: C.surf, border: `1px solid ${C.gold}` }}>
+      <div className="text-xs mb-2" style={{ color: C.dim }}>
+        Type
+      </div>
+      <div className="flex gap-2 mb-3">
+        {(['status', 'activity', 'cycle'] as PeriodKind[]).map((k) => (
+          <button
+            key={k}
+            onClick={() => changeKind(k)}
+            className="flex-1 py-2 rounded-xl text-xs font-semibold"
+            style={{ background: kind === k ? dawn : C.surf2, color: kind === k ? '#1A1206' : C.dim }}
+          >
+            {KIND_LABELS[k]}
+          </button>
+        ))}
+      </div>
+
       <div className="text-xs mb-2" style={{ color: C.dim }}>
         Catégorie
       </div>
@@ -137,18 +189,30 @@ function PeriodEditor({
         </button>
         <button
           disabled={!valid}
-          onClick={() => valid && onAdd({ kind, catId, start, end })}
+          onClick={() => valid && onSubmit({ kind, catId, start, end })}
           className="flex-[2] py-2.5 rounded-xl font-semibold text-sm"
           style={{ background: valid ? dawn : C.surf2, color: valid ? '#1A1206' : C.dim, boxShadow: valid ? glowShadow() : 'none' }}
         >
-          Ajouter la période
+          {initial ? 'Enregistrer' : 'Ajouter la période'}
         </button>
       </div>
     </div>
   );
 }
 
-function PeriodRow({ period, label, color, onDelete }: { period: Period; label: string; color: string; onDelete: () => void }) {
+function PeriodRow({
+  period,
+  label,
+  color,
+  onEdit,
+  onDelete,
+}: {
+  period: Period;
+  label: string;
+  color: string;
+  onEdit: () => void;
+  onDelete: () => void;
+}) {
   const { C } = useTheme();
   const fmtD = (k: string) => parseKey(k).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: '2-digit' });
   return (
@@ -160,6 +224,9 @@ function PeriodRow({ period, label, color, onDelete }: { period: Period; label: 
           {fmtD(period.start)} → {fmtD(period.end)}
         </div>
       </div>
+      <button onClick={onEdit} className="p-1.5 rounded-lg flex-shrink-0" style={{ background: C.surf }}>
+        <Icon name="edit" size={14} color={C.gold} />
+      </button>
       <button onClick={onDelete} className="p-1.5 rounded-lg flex-shrink-0" style={{ background: C.surf }}>
         <Icon name="trash" size={14} color={C.dim} />
       </button>
@@ -170,7 +237,12 @@ function PeriodRow({ period, label, color, onDelete }: { period: Period; label: 
 export function AgendaSettings({ agenda, setAgenda }: AgendaSettingsProps) {
   const { C } = useTheme();
   const askConfirm = useConfirm();
+  // periodKind !== null  → éditeur ouvert en mode CRÉATION (avec ce type initial)
+  // editingId  !== null  → éditeur ouvert en mode ÉDITION, inline à la place
+  //                        de la ligne correspondante.
+  // Les deux sont mutuellement exclusifs : ouvrir l'un ferme l'autre.
   const [periodKind, setPeriodKind] = useState<PeriodKind | null>(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [open, setOpen] = useState<CatBucket | 'periods' | null>(null);
   const toggle = (s: CatBucket | 'periods') => setOpen((cur) => (cur === s ? null : s));
 
@@ -205,12 +277,31 @@ export function AgendaSettings({ agenda, setAgenda }: AgendaSettingsProps) {
     setAgenda({ ...agenda, periods: [...periods, { ...p, id: uid() }] });
     setPeriodKind(null);
   };
+  /**
+   * Enregistre une période modifiée. L'id est CONSERVÉ : la période garde sa
+   * place dans le tableau, donc l'ordre de résolution de statusOf() (première
+   * période qui matche) reste inchangé — on ne déplace pas silencieusement la
+   * priorité d'un statut en le modifiant.
+   */
+  const savePeriod = (id: string, p: Omit<Period, 'id'>) => {
+    setAgenda({ ...agenda, periods: periods.map((x) => (x.id === id ? { ...p, id } : x)) });
+    setEditingId(null);
+  };
   const delPeriod = async (id: string) => {
     const ok = await askConfirm({ title: 'Supprimer la période', message: 'Supprimer cette période ?' });
-    if (ok) setAgenda({ ...agenda, periods: periods.filter((p) => p.id !== id) });
+    if (ok) {
+      if (editingId === id) setEditingId(null);
+      setAgenda({ ...agenda, periods: periods.filter((p) => p.id !== id) });
+    }
   };
-
-  const kindLabels: Record<PeriodKind, string> = { status: 'Statut', activity: 'Activité', cycle: 'Cycle sport' };
+  const startEdit = (id: string) => {
+    setPeriodKind(null); // ferme l'éditeur de création s'il était ouvert
+    setEditingId(id);
+  };
+  const startCreate = (k: PeriodKind) => {
+    setEditingId(null); // ferme l'éditeur d'édition s'il était ouvert
+    setPeriodKind(k);
+  };
 
   return (
     <div>
@@ -228,21 +319,27 @@ export function AgendaSettings({ agenda, setAgenda }: AgendaSettingsProps) {
 
       <Collapsible title="Périodes" badge={periods.length || null} open={open === 'periods'} onToggle={() => toggle('periods')}>
         <div className="text-xs mb-3" style={{ color: C.dim }}>
-          Applique un statut, une activité ou un état de cycle (actif/off) sur une plage de dates.
+          Applique un statut, une activité ou un état de cycle (actif/off) sur une plage de dates. Touche le crayon pour modifier une période existante.
         </div>
 
         {periodKind ? (
-          <PeriodEditor kind={periodKind} cats={catsForKind(periodKind)} onAdd={addPeriod} onCancel={() => setPeriodKind(null)} />
+          <PeriodEditor
+            key="new"
+            defaultKind={periodKind}
+            catsForKind={catsForKind}
+            onSubmit={addPeriod}
+            onCancel={() => setPeriodKind(null)}
+          />
         ) : (
           <div className="flex gap-2 mb-4">
             {(['status', 'activity', 'cycle'] as PeriodKind[]).map((k) => (
               <button
                 key={k}
-                onClick={() => setPeriodKind(k)}
+                onClick={() => startCreate(k)}
                 className="flex-1 py-2 rounded-xl text-xs font-semibold"
                 style={{ background: C.surf2, color: C.gold }}
               >
-                + {kindLabels[k]}
+                + {KIND_LABELS[k]}
               </button>
             ))}
           </div>
@@ -255,9 +352,31 @@ export function AgendaSettings({ agenda, setAgenda }: AgendaSettingsProps) {
         ) : (
           [...periods]
             .sort((a, b) => (a.start < b.start ? 1 : -1))
-            .map((p) => (
-              <PeriodRow key={p.id} period={p} label={`${kindLabels[p.kind]} · ${labelForPeriod(p)}`} color={colorForPeriod(p)} onDelete={() => delPeriod(p.id)} />
-            ))
+            .map((p) =>
+              // En édition, l'éditeur remplace la ligne SUR PLACE : on voit
+              // immédiatement quelle période on modifie, sans scroll.
+              // La `key` porte l'id : passer d'une période à une autre remonte
+              // le composant et réinitialise son state sur la bonne période.
+              editingId === p.id ? (
+                <PeriodEditor
+                  key={p.id}
+                  initial={p}
+                  defaultKind={p.kind}
+                  catsForKind={catsForKind}
+                  onSubmit={(np) => savePeriod(p.id, np)}
+                  onCancel={() => setEditingId(null)}
+                />
+              ) : (
+                <PeriodRow
+                  key={p.id}
+                  period={p}
+                  label={`${KIND_LABELS[p.kind]} · ${labelForPeriod(p)}`}
+                  color={colorForPeriod(p)}
+                  onEdit={() => startEdit(p.id)}
+                  onDelete={() => delPeriod(p.id)}
+                />
+              )
+            )
         )}
       </Collapsible>
     </div>

@@ -189,18 +189,6 @@ export function defaultAppData(): AppData {
     profile: { name: '', birthdate: '', height: '', weight: '', goals: '', photo: '' },
     workouts: defaultWorkouts(),
     weekTemplate: { ...DEFAULT_WEEK_TEMPLATE },
-    wods: [
-      {
-        id: 'w1',
-        name: 'WOD exemple',
-        transitionDur: 10,
-        items: [
-          { name: 'Pompes', dur: 30 },
-          { name: 'Air squats', dur: 30 },
-          { name: 'Mountain climbers', dur: 30 },
-        ],
-      },
-    ],
     habits: DEFAULT_HABITS.map((h) => ({ ...h })),
     customFoods: [],
     combos: [],

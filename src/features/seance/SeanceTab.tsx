@@ -1,14 +1,20 @@
 import { useState } from 'react';
-import type { AppData, Wod } from '@/types';
-import { dateKey } from '@/lib/utils';
+import type { AppData } from '@/types';
+import { parseKey } from '@/lib/utils';
 import { cycleLabelFor, getWorkouts, workoutsForDay } from '@/lib/workouts';
 import { useTheme } from '@/shared/theme/ThemeProvider';
 import { Collapsible, Icon } from '@/shared/ui';
 
 export interface SeanceTabProps {
   data: AppData;
+  /**
+   * Date du jour RÉACTIVE, fournie par useToday() dans App.tsx.
+   * AVANT : dateKey() était recalculé au render — si la PWA restait ouverte
+   * après minuit (cas courant sur iOS), la séance affichée, le bouton
+   * « Sport fait » et data.days[today] pointaient encore sur la VEILLE.
+   */
+  today: string;
   openRunner: (wid: string, idx: number) => void;
-  openWod: (wod: Wod) => void;
   openSettings: () => void;
   markSport: () => void;
 }
@@ -18,15 +24,14 @@ const WEEKDAYS: [string, number][] = [
   ['Vendredi', 5], ['Samedi', 6], ['Dimanche', 0],
 ];
 
-export function SeanceTab({ data, openRunner, openWod, openSettings, markSport }: SeanceTabProps) {
+export function SeanceTab({ data, today, openRunner, openSettings, markSport }: SeanceTabProps) {
   const { C, dawn, hexA, cardShadow, glowShadow } = useTheme();
-  const today = dateKey();
   const todayWorkouts = workoutsForDay(data, today);
   const workouts = getWorkouts(data);
   const wt = data.weekTemplate || {};
   const progWid = data.progress && data.progress.idx > 0 ? data.progress.wid : null;
   const [openWeek, setOpenWeek] = useState(false);
-  const todayWd = new Date().getDay();
+  const todayWd = parseKey(today).getDay();
   const namesOf = (v: string | string[] | undefined) => {
     const ids = Array.isArray(v) ? v : v ? [v] : [];
     const ns = ids.map((id) => workouts.find((x) => x.id === id)?.name).filter((n): n is string => Boolean(n));
@@ -57,7 +62,7 @@ export function SeanceTab({ data, openRunner, openWod, openSettings, markSport }
         <div className="flex items-start justify-between mb-1">
           <div>
             <div className="text-xs tracking-widest uppercase mb-1" style={{ color: C.dim }}>
-              {new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' })}
+              {parseKey(today).toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' })}
             </div>
             <h1 className="text-3xl font-extrabold tracking-tight">{headTitle}</h1>
             <div className="text-sm mt-1" style={{ color: C.gold }}>
@@ -112,30 +117,6 @@ export function SeanceTab({ data, openRunner, openWod, openSettings, markSport }
             <div className="text-sm" style={{ color: C.dim }}>Pas de séance prévue aujourd'hui. Profite du repos.</div>
           </div>
         )}
-
-        <div className="rounded-3xl p-5 mb-4" style={glassCard}>
-          <div className="font-bold mb-1 flex items-center gap-2">
-            <Icon name="flame" size={18} color={C.gold} /> WOD
-          </div>
-          <div className="text-sm mb-3" style={{ color: C.dim }}>
-            Échauffement 10 burpees + 10 remises debout, puis le WOD choisi.
-          </div>
-          {(data.wods || []).length === 0 ? (
-            <div className="text-sm" style={{ color: C.gold }}>Ajoute tes WODs dans Réglages → WOD.</div>
-          ) : (
-            (data.wods || []).map((w) => (
-              <button
-                key={w.id}
-                onClick={() => openWod(w)}
-                className="w-full flex items-center justify-between px-4 py-3 rounded-2xl mb-2"
-                style={{ background: hexA(C.surf2, 0.7) }}
-              >
-                <span className="text-sm font-medium">{w.name}</span>
-                <Icon name="play" size={18} color={C.gold} />
-              </button>
-            ))
-          )}
-        </div>
 
         <button
           onClick={markSport}

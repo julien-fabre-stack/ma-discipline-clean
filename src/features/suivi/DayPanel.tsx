@@ -4,7 +4,7 @@ import type { AppDataPatch } from '@/lib/useAppData';
 import { DEFAULT_HABITS, RDV_COLORS } from '@/lib/defaults';
 import { activitiesOf, anniversariesOf, eventsOf, statusOf, upcomingAnniversaries } from '@/lib/agenda';
 import { sportStatus } from '@/lib/workouts';
-import { parseKey, uid, dateKey } from '@/lib/utils';
+import { parseKey, uid } from '@/lib/utils';
 import { useTheme } from '@/shared/theme/ThemeProvider';
 import { Collapsible, Icon, useConfirm } from '@/shared/ui';
 
@@ -12,6 +12,8 @@ export interface DayPanelProps {
   data: AppData;
   update: (patch: AppDataPatch) => void;
   dayKey: string;
+  /** Date du jour réactive (useToday) — remplace dateKey() au render. */
+  today: string;
 }
 
 interface EventDraft {
@@ -21,7 +23,7 @@ interface EventDraft {
   color: string;
 }
 
-export function DayPanel({ data, update, dayKey }: DayPanelProps) {
+export function DayPanel({ data, update, dayKey, today }: DayPanelProps) {
   const { C, dawn, glowShadow } = useTheme();
   const askConfirm = useConfirm();
   const agenda = data.agenda || { statuses: [], activities: [], rdvTypes: [], periods: [], events: [] };
@@ -114,7 +116,7 @@ export function DayPanel({ data, update, dayKey }: DayPanelProps) {
   const annivToday = anniversariesOf(data, dayKey);
   // Rappel "à venir" uniquement sur la fiche d'aujourd'hui, pour éviter
   // qu'il s'affiche en double sur les 7 jours précédant l'événement.
-  const annivSoon = dayKey === dateKey() ? upcomingAnniversaries(data, dayKey, 7) : [];
+  const annivSoon = dayKey === today ? upcomingAnniversaries(data, dayKey, 7) : [];
 
   // Toutes les écritures passent par la forme fonctionnelle update((prev)=>…) :
   // la nouvelle valeur est calculée depuis l'état LE PLUS RÉCENT (prev), jamais

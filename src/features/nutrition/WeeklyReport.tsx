@@ -3,7 +3,7 @@ import type { AppData } from '@/types';
 import { MEALS, MEAL_COLORS } from '@/lib/defaults';
 import { dayTypeFor } from '@/lib/workouts';
 import { dayTotals, type Macros } from '@/lib/nutrition';
-import { addDays, dateKey, mondayOf, parseKey } from '@/lib/utils';
+import { addDays, mondayOf, parseKey } from '@/lib/utils';
 import { useTheme } from '@/shared/theme/ThemeProvider';
 import { Icon } from '@/shared/ui';
 import { exportNutritionPDF, exportForClaude } from './exportPdf';
@@ -11,11 +11,13 @@ import { exportNutritionPDF, exportForClaude } from './exportPdf';
 export interface WeeklyReportProps {
   data: AppData;
   startKey: string;
+  /** Date du jour réactive (useToday) — remplace dateKey() au render. */
+  today: string;
 }
 
 const CH = 150;
 
-export function WeeklyReport({ data, startKey }: WeeklyReportProps) {
+export function WeeklyReport({ data, startKey, today }: WeeklyReportProps) {
   const { C, cardShadow, hexA } = useTheme();
   const [offset, setOffset] = useState(0);
   const [showClaudeExport, setShowClaudeExport] = useState(false);
@@ -23,7 +25,6 @@ export function WeeklyReport({ data, startKey }: WeeklyReportProps) {
   const [claudeEnd, setClaudeEnd] = useState('');
   const [copied, setCopied] = useState(false);
 
-  const today = dateKey();
   const monday = addDays(mondayOf(startKey), offset * 7);
   const week = Array.from({ length: 7 }, (_, i) => addDays(monday, i));
   const labels = ['L', 'M', 'M', 'J', 'V', 'S', 'D'];

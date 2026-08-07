@@ -24,7 +24,7 @@ type Section = 'profil' | 'training' | 'nutrition' | 'dashboard' | 'apparence' |
 
 const MENUS: [Section, IconName, string, string][] = [
   ['profil', 'user', 'Data opérateur', 'Nom, âge, photo, objectifs'],
-  ['training', 'dumbbell', 'Training', 'Workouts, WOD, semaine type'],
+  ['training', 'dumbbell', 'Training', 'Séances & semaine type'],
   ['nutrition', 'apple', 'Nutrition', 'Objectifs caloriques & eau'],
   ['dashboard', 'calendar', 'Tableau de bord', 'Habitudes & agenda'],
   ['apparence', 'palette', 'Apparence', 'Thème, accent, transparence'],

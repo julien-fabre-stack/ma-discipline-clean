@@ -73,7 +73,6 @@ export const remoteAppDataSchema = z
   .object({
     workouts: z.array(workoutSchema).optional(),
     weekTemplate: looseRecord.optional(),
-    wods: z.array(looseRecord).optional(),
     habits: z.array(habitSchema).optional(),
     customFoods: z.array(looseRecord).optional(),
     combos: z.array(looseRecord).optional(),

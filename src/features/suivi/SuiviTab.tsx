@@ -4,7 +4,7 @@ import type { AppDataPatch } from '@/lib/useAppData';
 import { DEFAULT_ACTIVITIES, DEFAULT_RDV_TYPES, DEFAULT_STATUSES } from '@/lib/defaults';
 import { activitiesOf, anniversariesOf, anniversaryDaySet, eventsOf, ratioOfDay, statusOf } from '@/lib/agenda';
 import { sportStatus } from '@/lib/workouts';
-import { addDays, daysBetween, dateKey, parseKey } from '@/lib/utils';
+import { addDays, daysBetween, parseKey } from '@/lib/utils';
 import { useTheme } from '@/shared/theme/ThemeProvider';
 import { Icon } from '@/shared/ui';
 import { DayPanel } from './DayPanel';
@@ -104,8 +104,11 @@ export function SuiviTab({ data, update, today, openSettings }: SuiviTabProps) {
   const _dd = _dr % 30;
   const driLabel =
     (_dy > 0 ? _dy + (_dy > 1 ? ' ans ' : ' an ') : '') + (_dm > 0 ? _dm + ' mois ' : '') + _dd + ' j';
-  const Y = new Date().getFullYear();
-  const tk = dateKey();
+  // Année et "aujourd'hui" dérivés de la prop `today` (useToday) et non plus
+  // de new Date()/dateKey() au render : le streak et la frise suivent le
+  // passage de minuit même si la PWA reste ouverte plusieurs jours.
+  const Y = parseKey(today).getFullYear();
+  const tk = today;
 
   const streak = useMemo(() => {
     let s = 0;
@@ -373,7 +376,7 @@ export function SuiviTab({ data, update, today, openSettings }: SuiviTabProps) {
           ))}
         </div>
         <div className="flex-1 overflow-y-auto px-3 py-3">
-          <DayPanel data={data} update={update} dayKey={selectedDay} />
+          <DayPanel data={data} update={update} dayKey={selectedDay} today={today} />
         </div>
       </div>
     </div>

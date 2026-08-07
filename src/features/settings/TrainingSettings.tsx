@@ -6,7 +6,6 @@ import { uid } from '@/lib/utils';
 import { useTheme } from '@/shared/theme/ThemeProvider';
 import { Icon, useConfirm } from '@/shared/ui';
 import { ExerciseList } from './ExerciseList';
-import { WodSettings } from './WodSettings';
 
 export interface TrainingSettingsProps {
   data: AppData;
@@ -169,8 +168,6 @@ export function TrainingSettings({ data, update }: TrainingSettingsProps) {
           );
         })}
       </div>
-
-      <WodSettings data={data} update={update} />
     </div>
   );
 }

@@ -14,7 +14,6 @@ import { Login } from '@/features/auth/Login';
 import { SeanceTab } from '@/features/seance/SeanceTab';
 import { SuiviTab } from '@/features/suivi/SuiviTab';
 import { JournalSessionProvider } from '@/features/journal/JournalSession';
-import type { Wod } from '@/types';
 
 // Onglets et écrans lourds chargés à la demande (code-splitting).
 // Chaque import() devient un chunk séparé, téléchargé seulement à l'ouverture.
@@ -30,10 +29,6 @@ const Settings = lazy(() =>
 const Runner = lazy(() =>
   import('@/features/seance/Runner').then((m) => ({ default: m.Runner }))
 );
-const WodRunner = lazy(() =>
-  import('@/features/seance/WodRunner').then((m) => ({ default: m.WodRunner }))
-);
-
 type TabKey = 'seance' | 'nutrition' | 'suivi' | 'journal';
 
 const TABS: [TabKey, string, 'dumbbell' | 'apple' | 'calendar' | 'edit'][] = [
@@ -74,7 +69,6 @@ function AuthedApp({
  const tabClass = `tab-enter tab-${tabTransition}`;
  const [tab, setTab] = useState<TabKey>('seance');
  const [runner, setRunner] = useState<{ wid: string; idx: number } | null>(null);
- const [wod, setWod] = useState<Wod | null>(null);
  const [settingsOpen, setSettingsOpen] = useState(false);
 
  // Date du jour RÉACTIVE : suit le passage de minuit et le retour au premier
@@ -203,9 +197,9 @@ function AuthedApp({
        <div key="seance" className={tabClass}>
          <SeanceTab
            data={data}
+           today={today}
            markSport={markSport}
            openRunner={(wid, idx) => setRunner({ wid, idx })}
-           openWod={(w) => setWod(w)}
            openSettings={() => setSettingsOpen(true)}
          />
        </div>
@@ -260,19 +254,6 @@ function AuthedApp({
              update({ progress: null });
              markSport();
              setRunner(null);
-           }}
-         />
-       </Suspense>
-     )}
-
-     {wod && (
-       <Suspense fallback={null}>
-         <WodRunner
-           wod={wod}
-           onClose={() => setWod(null)}
-           onDone={() => {
-             markSport();
-             setWod(null);
            }}
          />
        </Suspense>

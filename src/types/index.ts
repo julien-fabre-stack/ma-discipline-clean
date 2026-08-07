@@ -32,20 +32,6 @@ export interface SessionProgress {
   wid?: string;
 }
 
-// ===== WOD =====
-
-export interface WodItem {
-  name: string;
-  dur: number;
-}
-
-export interface Wod {
-  id: string;
-  name: string;
-  transitionDur: number;
-  items: WodItem[];
-}
-
 // ===== Nutrition =====
 
 export type FoodUnit = 'g' | 'piece';
@@ -229,7 +215,6 @@ export interface AppData {
   profile: Profile;
   workouts: Workout[];
   weekTemplate: WeekTemplate;
-  wods: Wod[];
   habits: Habit[];
   customFoods: Food[];
   combos: Combo[];

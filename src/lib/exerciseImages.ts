@@ -16,6 +16,12 @@ export function exerciseImageFile(name: string | undefined): string | null {
   if (!n) return null;
   if (n.includes('burpee')) return 'burpee-pompe.jpg';
   if (n.includes('diamant')) return 'pompes-diamant.jpg';
+  // Testés AVANT « pompe » et « quadrup » : « Pompes pike » doit afficher le
+  // pike, et le bird dog ne doit pas tomber sur l'image du bear crawl.
+  if (n.includes('pike') || n.includes('pique')) return 'pike-push-up.jpg';
+  if (n.includes('bird') || (n.includes('chien') && n.includes('oiseau'))) return 'bird-dog.jpg';
+  if (n.includes('glute') || n.includes('bridge') || /\bpont\b/.test(n) || n.includes('bassin'))
+    return 'glute-bridge.jpg';
   if (n.includes('pompe')) {
     if ((n.includes('torse') || n.includes('buste')) && n.includes('surelev'))
       return 'pompes-torse-souleve.jpg';

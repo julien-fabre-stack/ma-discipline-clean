@@ -13,6 +13,8 @@ import {
   inRange,
   pruneOldDays,
   normName,
+  calendarDiff,
+  calendarSpanLabel,
 } from '../utils';
 
 describe('pad / fmt', () => {
@@ -139,5 +141,44 @@ describe('normName', () => {
     expect(normName('  Pompes   Diamants ')).toBe('pompes diamants');
     expect(normName('Élévations latérales')).toBe('elevations laterales');
     expect(normName(undefined)).toBe('');
+  });
+});
+
+describe('calendarDiff — compteur sans alcool (vraies dates calendaires)', () => {
+  it('même jour → 0', () => {
+    expect(calendarDiff('2026-10-30', '2026-10-30')).toEqual({ years: 0, months: 0, days: 0, total: 0 });
+  });
+  it('start dans le futur → 0 (jamais négatif)', () => {
+    expect(calendarDiff('2026-11-05', '2026-10-30').total).toBe(0);
+  });
+  it('1er janv → 30 oct : 9 mois 29 j (et non 10 mois 2 j en blocs de 30 j)', () => {
+    const s = calendarDiff('2026-01-01', '2026-10-30');
+    expect(s).toEqual({ years: 0, months: 9, days: 29, total: 302 });
+    expect(calendarSpanLabel(s)).toBe('9 mois 29 j');
+  });
+  it('mois pile : 15 mars → 15 avril = 1 mois 0 j', () => {
+    expect(calendarDiff('2026-03-15', '2026-04-15')).toMatchObject({ months: 1, days: 0, total: 31 });
+  });
+  it('veille du « moisiversaire » : 15 mars → 14 avril = 0 mois 30 j', () => {
+    expect(calendarDiff('2026-03-15', '2026-04-14')).toMatchObject({ months: 0, days: 30 });
+  });
+  it('fin de mois bornée : 31 janv → 28 févr = 1 mois 0 j', () => {
+    expect(calendarDiff('2026-01-31', '2026-02-28')).toMatchObject({ months: 1, days: 0, total: 28 });
+  });
+  it('31 janv → 1er mars = 1 mois 1 j', () => {
+    expect(calendarDiff('2026-01-31', '2026-03-01')).toMatchObject({ months: 1, days: 1 });
+  });
+  it('année bissextile : 2024-02-29 → 2025-02-28 = 1 an', () => {
+    expect(calendarDiff('2024-02-29', '2025-02-28')).toMatchObject({ years: 1, months: 0, days: 0, total: 365 });
+  });
+  it('plus d\'un an : 2024-05-10 → 2026-10-30 = 2 ans 5 mois 20 j', () => {
+    const s = calendarDiff('2024-05-10', '2026-10-30');
+    expect(s).toMatchObject({ years: 2, months: 5, days: 20 });
+    expect(s.total).toBe(daysBetween('2024-05-10', '2026-10-30'));
+    expect(calendarSpanLabel(s)).toBe('2 ans 5 mois 20 j');
+  });
+  it('total cohérent sur un passage heure d\'été/hiver', () => {
+    expect(calendarDiff('2026-03-28', '2026-03-30').total).toBe(2);
+    expect(calendarDiff('2026-10-24', '2026-10-26').total).toBe(2);
   });
 });

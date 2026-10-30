@@ -1,7 +1,8 @@
 import { useMemo, useState } from 'react';
 import type { AppData, Combo, Food, NutritionTargets } from '@/types';
 import type { AppDataPatch } from '@/lib/useAppData';
-import { dateKey, normName, parseKey } from '@/lib/utils';
+import { calendarDiff, calendarSpanLabel, dateKey, normName, parseKey } from '@/lib/utils';
+import { useToday } from '@/lib/useToday';
 import { describeAdjustments, parseBilanAdjustments } from '@/lib/bilanImport';
 import { useTheme } from '@/shared/theme/ThemeProvider';
 import { Collapsible, Icon, useConfirm } from '@/shared/ui';
@@ -267,6 +268,11 @@ export function NutritionSettings({ data, update }: NutritionSettingsProps) {
   const toggle = (s: Section) => setOpen((cur) => (cur === s ? null : s));
   const [adding, setAdding] = useState(false);
   const [q, setQ] = useState('');
+  // Date du jour réactive (et non dateKey() au render) : borne max du
+  // sélecteur et aperçu du compteur sans alcool restent justes après minuit.
+  const today = useToday();
+  const dfStart = (data.drinkfree && data.drinkfree.start) || today;
+  const dfSpan = calendarDiff(dfStart, today);
 
   const setTarget = (k: keyof NutritionTargets, v: number) =>
     update((prev) => ({ targets: { ...prev.targets, [k]: v } }));
@@ -418,12 +424,24 @@ export function NutritionSettings({ data, update }: NutritionSettingsProps) {
           <div className="text-xs mb-1" style={{ color: C.dim }}>Depuis le</div>
           <input
             type="date"
-            max={dateKey()}
-            value={(data.drinkfree && data.drinkfree.start) || dateKey()}
-            onChange={(e) => { if (e.target.value) update({ drinkfree: { start: e.target.value } }); }}
+            max={today}
+            value={dfStart}
+            onChange={(e) => {
+              const v = e.target.value;
+              // Garde : iOS ignore parfois `max` — une date future donnerait
+              // un compteur bloqué à 0 jusqu'à cette date.
+              if (v && v <= today) update({ drinkfree: { start: v } });
+            }}
             className="w-full px-3 py-2.5 rounded-xl outline-none text-sm"
             style={{ background: C.surf2, color: C.text, border: `1px solid ${C.line}` }}
           />
+          <div className="text-xs mt-2 tabular-nums" style={{ color: C.dim }}>
+            Aujourd'hui :{' '}
+            <span style={{ color: C.text }}>
+              {dfSpan.total} jour{dfSpan.total > 1 ? 's' : ''}
+            </span>
+            {(dfSpan.years > 0 || dfSpan.months > 0) && <> · {calendarSpanLabel(dfSpan)}</>}
+          </div>
         </div>
       </Collapsible>
 

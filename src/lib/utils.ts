@@ -51,6 +51,56 @@ export const monthLabel = (mk: string): string => {
 export const inRange = (k: string, start: string, end: string): boolean =>
   k >= start && k <= end;
 
+export interface CalendarSpan {
+  years: number;
+  months: number;
+  days: number;
+  /** Nombre total de jours écoulés (identique à daysBetween). */
+  total: number;
+}
+
+/**
+ * Écart CALENDAIRE réel entre deux clés YYYY-MM-DD (start ≤ end).
+ *
+ * AVANT (compteur sans alcool) : mois = blocs de 30 j, années = 365 j →
+ * dérive de plusieurs jours sur l'année (ex. 1er janv → 30 oct affichait
+ * « 10 mois 2 j » au lieu de « 9 mois 29 j »).
+ *
+ * Méthode : on cherche le plus grand nombre de mois entiers N tel que
+ * start + N mois ≤ end (jour borné à la fin du mois : 31 janv + 1 mois =
+ * 28/29 févr), puis on compte les jours restants. Si end < start, tout vaut 0.
+ */
+export function calendarDiff(start: string, end: string): CalendarSpan {
+  const total = daysBetween(start, end);
+  if (!(total > 0)) return { years: 0, months: 0, days: 0, total: 0 };
+  const [sy, sm, sd] = start.split('-').map(Number);
+  const [ey, em] = end.split('-').map(Number);
+  const anchorAt = (n: number): string => {
+    const y = sy + Math.floor((sm - 1 + n) / 12);
+    const m = ((sm - 1 + n) % 12) + 1;
+    const d = Math.min(sd, daysInMonth(`${y}-${pad(m)}`));
+    return `${y}-${pad(m)}-${pad(d)}`;
+  };
+  let n = Math.max(0, (ey - sy) * 12 + (em - sm));
+  while (n > 0 && anchorAt(n) > end) n--;
+  return {
+    years: Math.floor(n / 12),
+    months: n % 12,
+    days: daysBetween(anchorAt(n), end),
+    total,
+  };
+}
+
+/** Libellé court « 1 an 2 mois 3 j » d'un écart calendaire. */
+export function calendarSpanLabel(s: CalendarSpan): string {
+  return (
+    (s.years > 0 ? s.years + (s.years > 1 ? ' ans ' : ' an ') : '') +
+    (s.months > 0 ? s.months + ' mois ' : '') +
+    s.days +
+    ' j'
+  );
+}
+
 /**
  * Génère un identifiant unique.
  * Utilise crypto.randomUUID() (standard Web, disponible iOS 15.4+ / Chrome 92+)

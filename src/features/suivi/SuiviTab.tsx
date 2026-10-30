@@ -4,7 +4,7 @@ import type { AppDataPatch } from '@/lib/useAppData';
 import { DEFAULT_ACTIVITIES, DEFAULT_RDV_TYPES, DEFAULT_STATUSES } from '@/lib/defaults';
 import { activitiesOf, anniversariesOf, anniversaryDaySet, eventsOf, ratioOfDay, statusOf } from '@/lib/agenda';
 import { sportStatus } from '@/lib/workouts';
-import { addDays, daysBetween, parseKey } from '@/lib/utils';
+import { addDays, calendarDiff, calendarSpanLabel, parseKey } from '@/lib/utils';
 import { useTheme } from '@/shared/theme/ThemeProvider';
 import { Icon } from '@/shared/ui';
 import { DayPanel } from './DayPanel';
@@ -96,14 +96,15 @@ const FriseRow = memo(function FriseRow({
 
 export function SuiviTab({ data, update, today, openSettings }: SuiviTabProps) {
   const { C, dawn, glowShadow } = useTheme();
+  // Compteur sans alcool : écart CALENDAIRE réel entre la date de départ et
+  // `today` (useToday, réactif à minuit). Avant : mois = 30 j et an = 365 j,
+  // d'où un décalage avec le calendrier. Le total en jours est affiché dès
+  // qu'il y a au moins un mois, pour pouvoir le vérifier d'un coup d'œil.
   const dfStart = (data.drinkfree && data.drinkfree.start) || today;
-  const drinkCount = Math.max(0, daysBetween(dfStart, today));
-  const _dy = Math.floor(drinkCount / 365);
-  const _dr = drinkCount % 365;
-  const _dm = Math.floor(_dr / 30);
-  const _dd = _dr % 30;
+  const drinkSpan = calendarDiff(dfStart, today);
   const driLabel =
-    (_dy > 0 ? _dy + (_dy > 1 ? ' ans ' : ' an ') : '') + (_dm > 0 ? _dm + ' mois ' : '') + _dd + ' j';
+    calendarSpanLabel(drinkSpan) +
+    (drinkSpan.years > 0 || drinkSpan.months > 0 ? ` (${drinkSpan.total} j)` : '');
   // Année et "aujourd'hui" dérivés de la prop `today` (useToday) et non plus
   // de new Date()/dateKey() au render : le streak et la frise suivent le
   // passage de minuit même si la PWA reste ouverte plusieurs jours.

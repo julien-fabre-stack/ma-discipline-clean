@@ -31,7 +31,7 @@ function FaqItem({ q, a, open, onToggle }: { q: string; a: string; open: boolean
 }
 
 const FAQ_ITEMS: [string, string, string][] = [
-  ['nav', "Comment l'app est organisée ?", "Quatre onglets en bas de l'écran : Séance (ta routine du jour et le lanceur d'exercices), Nutrition (journal alimentaire et rapports), Suivi (frise/calendrier, habitudes, agenda) et Journal (tes entrées personnelles chiffrées). Le bouton ⚙️ en haut de chaque onglet ouvre les Réglages, accessibles partout."],
+  ['nav', "Comment l'app est organisée ?", "Trois onglets en bas de l'écran : Séance (ta routine du jour et le lanceur d'exercices), Nutrition (journal alimentaire et rapports) et Suivi (frise/calendrier, habitudes, agenda). Le bouton ⚙️ en haut de chaque onglet ouvre les Réglages, accessibles partout."],
   ['seance', 'Comment fonctionne le lanceur de séance ?', "Touche « Démarrer » pour lancer ta séance du jour, exercice par exercice. Chaque étape affiche les répétitions à faire ou un minuteur de repos/temps. Si tu quittes en cours de route, « Reprendre » réapparaît pour continuer où tu en étais."],
   ['sport', 'Comment marquer ma séance comme faite ?', "Le bouton « Marquer Sport fait » dans l'onglet Séance, ou automatiquement à la fin du lanceur de séance. Ça coche l'habitude « Sport » du jour, visible dans Suivi."],
   ['nutrition', 'Comment fonctionne le journal alimentaire ?', "Dans l'onglet Nutrition, touche le + sur un repas pour ajouter un aliment (ta bibliothèque, recherche dans la base Ciqual, ou création manuelle). Les totaux du jour et de chaque repas s'affichent en haut. L'onglet « Rapports » donne une vue hebdomadaire : calories par jour, répartition par repas et macros."],

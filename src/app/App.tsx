@@ -13,15 +13,11 @@ import { Login } from '@/features/auth/Login';
 // Séance et Suivi sont chargés directement (Séance = onglet par défaut au démarrage).
 import { SeanceTab } from '@/features/seance/SeanceTab';
 import { SuiviTab } from '@/features/suivi/SuiviTab';
-import { JournalSessionProvider } from '@/features/journal/JournalSession';
 
 // Onglets et écrans lourds chargés à la demande (code-splitting).
 // Chaque import() devient un chunk séparé, téléchargé seulement à l'ouverture.
 const NutritionTab = lazy(() =>
   import('@/features/nutrition/NutritionTab').then((m) => ({ default: m.NutritionTab }))
-);
-const JournalTab = lazy(() =>
-  import('@/features/journal/JournalTab').then((m) => ({ default: m.JournalTab }))
 );
 const Settings = lazy(() =>
   import('@/features/settings/Settings').then((m) => ({ default: m.Settings }))
@@ -29,13 +25,12 @@ const Settings = lazy(() =>
 const Runner = lazy(() =>
   import('@/features/seance/Runner').then((m) => ({ default: m.Runner }))
 );
-type TabKey = 'seance' | 'nutrition' | 'suivi' | 'journal';
+type TabKey = 'seance' | 'nutrition' | 'suivi';
 
-const TABS: [TabKey, string, 'dumbbell' | 'apple' | 'calendar' | 'edit'][] = [
+const TABS: [TabKey, string, 'dumbbell' | 'apple' | 'calendar'][] = [
  ['seance', 'Séance', 'dumbbell'],
  ['nutrition', 'Nutrition', 'apple'],
  ['suivi', 'Suivi', 'calendar'],
- ['journal', 'Journal', 'edit'],
 ];
 
 // Fallback affiché pendant le chargement d'un chunk lazy (très bref).
@@ -47,7 +42,6 @@ function TabFallback() {
 function AuthedApp({
  data,
  update,
- uid,
  online,
  pendingWrites,
  archiveError,
@@ -57,7 +51,6 @@ function AuthedApp({
 }: {
  data: AppData;
  update: (patch: AppDataPatch) => void;
- uid: string;
  online: boolean;
  pendingWrites: boolean;
  archiveError: string | null;
@@ -100,7 +93,6 @@ function AuthedApp({
  const navAlpha = data.navAlpha == null ? 0.92 : data.navAlpha;
 
  return (
-   <JournalSessionProvider meta={data.journalMeta ?? null}>
    <div
      style={{
        background: 'transparent',
@@ -229,19 +221,6 @@ function AuthedApp({
        </div>
      )}
 
-     {tab === 'journal' && (
-       <div key="journal" className={tabClass}>
-         <Suspense fallback={<TabFallback />}>
-           <JournalTab
-             update={update}
-             uid={uid}
-             today={today}
-             openSettings={() => setSettingsOpen(true)}
-           />
-         </Suspense>
-       </div>
-     )}
-
      {runner !== null && (
        <Suspense fallback={null}>
          <Runner
@@ -305,7 +284,6 @@ function AuthedApp({
 
      <span style={{ display: 'none', background: dawn, boxShadow: glowShadow() }} />
    </div>
-   </JournalSessionProvider>
  );
 }
 
@@ -436,7 +414,6 @@ function AppGate({
    <AuthedApp
      data={data}
      update={update}
-     uid={uid}
      online={online}
      pendingWrites={pendingWrites}
      archiveError={archiveError}

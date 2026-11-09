@@ -196,9 +196,38 @@ export interface DrinkFreeCounter {
   start: string;
 }
 
+// ===== Épargne =====
+
+export type SavingsPeriod = 'day' | 'week' | 'month' | 'year';
+
+/**
+ * Compteur d'épargne automatique (affiché dans le tableau de bord).
+ * Valeur THÉORIQUE : `amount` est ajouté à chaque occurrence de `period`
+ * depuis `start` (jour J compris) ; `adjust` corrige l'écart avec la réalité.
+ */
+export interface SavingsCounter {
+  label: string;
+  start: string; // "YYYY-MM-DD"
+  amount: number;
+  period: SavingsPeriod;
+  adjust: number; // correction manuelle (€), peut être négative
+}
+
+/** Compte d'épargne (Data opérateur uniquement, jamais affiché ailleurs). */
+export interface SavingsAccount {
+  id: string;
+  name: string;
+  amount: number;
+}
+
 export interface AppData {
   cycleStart: string;
   drinkfree: DrinkFreeCounter;
+
+  /** Compteur d'épargne du tableau de bord ; null/absent = désactivé. */
+  savingsCounter?: SavingsCounter | null;
+  /** Comptes d'épargne saisis à la main (Data opérateur). */
+  savingsAccounts?: SavingsAccount[];
   targets: NutritionTargets;
   profile: Profile;
   workouts: Workout[];

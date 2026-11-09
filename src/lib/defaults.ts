@@ -185,6 +185,8 @@ export function defaultAppData(): AppData {
   return {
     cycleStart: dateKey(),
     drinkfree: { start: dateKey() },
+    savingsCounter: null,
+    savingsAccounts: [],
     targets: { train: 2400, recup: 2050, repos: 1800, water: 2 },
     profile: { name: '', birthdate: '', height: '', weight: '', goals: '', photo: '' },
     workouts: defaultWorkouts(),
@@ -247,6 +249,13 @@ export function migrateData(raw: Partial<AppData> & Record<string, unknown>): Ap
   // Anniversaires : champ ajouté après coup, absent des anciens documents.
   if (!Array.isArray(x.anniversaries)) {
     x.anniversaries = [];
+  }
+  // Épargne : champs ajoutés après coup, absents des anciens documents.
+  if (!Array.isArray(x.savingsAccounts)) {
+    x.savingsAccounts = [];
+  }
+  if (!x.savingsCounter || typeof x.savingsCounter !== 'object') {
+    x.savingsCounter = null;
   }
   // Garde de fraîcheur : les anciens documents n'ont pas d'horodatage.
   if (typeof x.updatedAt !== 'number' || !Number.isFinite(x.updatedAt)) {

@@ -5,6 +5,7 @@ import { ageFrom, dateKey } from '@/lib/utils';
 import { resizeImage } from '@/lib/image';
 import { useTheme } from '@/shared/theme/ThemeProvider';
 import { Icon, useConfirm } from '@/shared/ui';
+import { SavingsSettings } from './SavingsSettings';
 
 export interface ProfileSettingsProps {
   data: AppData;
@@ -180,6 +181,8 @@ export function ProfileSettings({ data, update }: ProfileSettingsProps) {
           Remettre le compteur à zéro
         </button>
       </div>
+
+      <SavingsSettings data={data} update={update} />
 
       <div className="text-xs tracking-widest uppercase mb-3" style={{ color: C.dim }}>
         Données

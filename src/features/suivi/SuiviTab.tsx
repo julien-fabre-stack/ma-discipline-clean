@@ -5,6 +5,7 @@ import { DEFAULT_ACTIVITIES, DEFAULT_RDV_TYPES, DEFAULT_STATUSES } from '@/lib/d
 import { activitiesOf, anniversariesOf, anniversaryDaySet, eventsOf, ratioOfDay, statusOf } from '@/lib/agenda';
 import { sportStatus } from '@/lib/workouts';
 import { addDays, calendarDiff, calendarSpanLabel, parseKey } from '@/lib/utils';
+import { formatEuros, savingsTotal } from '@/lib/savings';
 import { useTheme } from '@/shared/theme/ThemeProvider';
 import { Icon } from '@/shared/ui';
 import { DayPanel } from './DayPanel';
@@ -105,6 +106,11 @@ export function SuiviTab({ data, update, today, openSettings }: SuiviTabProps) {
   const driLabel =
     calendarSpanLabel(drinkSpan) +
     (drinkSpan.years > 0 || drinkSpan.months > 0 ? ` (${drinkSpan.total} j)` : '');
+  // Compteur d'épargne (désactivé = null/absent). `today` est réactif à minuit,
+  // donc le total passe tout seul à l'occurrence suivante.
+  const savings = data.savingsCounter || null;
+  const savingsLabel = savings ? (savings.label || '').trim() || 'Épargne' : '';
+  const savingsValue = savings ? formatEuros(savingsTotal(savings, today)) : '';
   // Année et "aujourd'hui" dérivés de la prop `today` (useToday) et non plus
   // de new Date()/dateKey() au render : le streak et la frise suivent le
   // passage de minuit même si la PWA reste ouverte plusieurs jours.
@@ -249,16 +255,28 @@ export function SuiviTab({ data, update, today, openSettings }: SuiviTabProps) {
           </button>
         </div>
         <div className="flex items-center justify-between mb-2">
-          <div className="text-xs">
-            <span className="tracking-widest uppercase" style={{ color: C.gold }}>
-              Sans alcool
-            </span>{' '}
-            <span style={{ color: C.dim }}>· {driLabel}</span>
-            {streak > 0 && (
-              <span style={{ color: C.dim }}>
-                {' '}
-                · série {streak} j
-              </span>
+          <div>
+            <div className="text-xs">
+              <span className="tracking-widest uppercase" style={{ color: C.gold }}>
+                Sans alcool
+              </span>{' '}
+              <span style={{ color: C.dim }}>· {driLabel}</span>
+              {streak > 0 && (
+                <span style={{ color: C.dim }}>
+                  {' '}
+                  · série {streak} j
+                </span>
+              )}
+            </div>
+            {savings && (
+              <div className="text-xs mt-0.5">
+                <span className="tracking-widest uppercase" style={{ color: C.gold }}>
+                  {savingsLabel}
+                </span>{' '}
+                <span className="tabular-nums" style={{ color: C.dim }}>
+                  · {savingsValue}
+                </span>
+              </div>
             )}
           </div>
           <button

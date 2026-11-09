@@ -87,6 +87,8 @@ export const remoteAppDataSchema = z
     updatedAt: z.number().optional(),
     cycleStart: z.string().optional(),
     drinkfree: looseRecord.optional(),
+    savingsCounter: looseRecord.nullable().optional(),
+    savingsAccounts: z.array(looseRecord).optional(),
     targets: looseRecord.optional(),
     profile: looseRecord.optional(),
   })
